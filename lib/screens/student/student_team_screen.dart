@@ -381,19 +381,19 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
               children: [
                 IconButton(
                   icon: const Icon(Icons.chat_bubble, color: Colors.green),
-                  onSize: 48,
+                  iconSize: 48,
                   onPressed: () {
                     // Redirect logic here
                   },
                 ),
                 IconButton(
                   icon: const Icon(Icons.send, color: Colors.blue),
-                  onSize: 48,
+                  iconSize: 48,
                   onPressed: () {},
                 ),
                 IconButton(
                   icon: const Icon(Icons.discord, color: Colors.indigo),
-                  onSize: 48,
+                  iconSize: 48,
                   onPressed: () {},
                 ),
               ],
@@ -504,7 +504,9 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
       width: 300,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color.withValues(alpha: 0.5),
+        color:
+            Theme.of(context).cardTheme.color?.withValues(alpha: 0.5) ??
+            Colors.transparent,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: Colors.grey.shade600,
