@@ -1,13 +1,92 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
+import 'package:go_router/go_router.dart';
 
-class StudentEventScreen extends StatelessWidget {
+// Dummy Model for UI
+class EventModel {
+  final String title;
+  final String date;
+  final String location;
+  final List<String> tags;
+  final MaterialColor color;
+  final bool isTeamRequired;
+  final bool isRecommended;
+
+  EventModel({
+    required this.title,
+    required this.date,
+    required this.location,
+    required this.tags,
+    required this.color,
+    required this.isTeamRequired,
+    this.isRecommended = false,
+  });
+}
+
+class StudentEventScreen extends StatefulWidget {
   const StudentEventScreen({super.key});
 
   @override
+  State<StudentEventScreen> createState() => _StudentEventScreenState();
+}
+
+class _StudentEventScreenState extends State<StudentEventScreen> {
+  // Simulated Server Data Fetch
+  final List<EventModel> _allEvents = [
+    EventModel(
+      title: 'UM Hackathon 2026',
+      date: 'Nov 12 - Nov 14',
+      location: 'Faculty of Computer Science',
+      tags: ['Competition', 'Programming', 'Prize Pool'],
+      color: Colors.purple,
+      isTeamRequired: true,
+      isRecommended: true,
+    ),
+    EventModel(
+      title: 'Data Science Industry Talk',
+      date: 'Nov 10, 2:00 PM',
+      location: 'Online / Zoom',
+      tags: ['Talk/Seminar', 'Industry Insights'],
+      color: Colors.blue,
+      isTeamRequired: false,
+      isRecommended: true,
+    ),
+    EventModel(
+      title: 'Annual Tech Symposium',
+      date: 'Dec 1, 9:00 AM',
+      location: 'Main Hall',
+      tags: const ['Event Committee', 'Logistics Role'],
+      color: Colors.orange,
+      isTeamRequired: false,
+      isRecommended: true,
+    ),
+    EventModel(
+      title: 'Design Thinking Workshop',
+      date: 'Dec 5, 10:00 AM',
+      location: 'FBA Building',
+      tags: const ['Workshop', 'UI/UX'],
+      color: Colors.pink,
+      isTeamRequired: true,
+      isRecommended: false,
+    ),
+    EventModel(
+      title: 'Cybersecurity CTF',
+      date: 'Dec 15, 8:00 AM',
+      location: 'Lab 3',
+      tags: const ['Competition', 'Security'],
+      color: Colors.green,
+      isTeamRequired: true,
+      isRecommended: false,
+    ),
+  ];
+
+  @override
   Widget build(BuildContext context) {
+    final recommendedEvents = _allEvents.where((e) => e.isRecommended).toList();
+    final allServerEvents = _allEvents.where((e) => !e.isRecommended).toList();
+
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(32.0),
         child: Column(
@@ -24,37 +103,46 @@ class StudentEventScreen extends StatelessWidget {
             ),
             const SizedBox(height: 48),
 
-            Text(
-              'Recommended For You',
-              style: Theme.of(context).textTheme.titleLarge,
+            // Recommended Section
+            Row(
+              children: [
+                const Icon(Icons.star, color: Colors.amber),
+                const SizedBox(width: 12),
+                Text(
+                  'Recommended For You',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             Wrap(
               spacing: 24,
               runSpacing: 24,
+              children: recommendedEvents
+                  .map((e) => _EventCard(event: e))
+                  .toList(),
+            ),
+
+            const SizedBox(height: 64),
+
+            // All Events Section
+            Row(
               children: [
-                const _EventCard(
-                  title: 'UM Hackathon 2026',
-                  date: 'Nov 12 - Nov 14',
-                  location: 'Faculty of Computer Science',
-                  tags: ['Competition', 'Programming', 'Prize Pool'],
-                  color: Colors.purple,
-                ),
-                const _EventCard(
-                  title: 'Data Science Industry Talk',
-                  date: 'Nov 10, 2:00 PM',
-                  location: 'Online / Zoom',
-                  tags: ['Talk/Seminar', 'Industry Insights'],
-                  color: Colors.blue,
-                ),
-                _EventCard(
-                  title: 'Annual Tech Symposium',
-                  date: 'Dec 1, 9:00 AM',
-                  location: 'Main Hall',
-                  tags: const ['Event Committee', 'Logistics Role'],
-                  color: Colors.orange,
+                const Icon(Icons.explore, color: AppTheme.secondaryColor),
+                const SizedBox(width: 12),
+                Text(
+                  'Explore Entire Server',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
               ],
+            ),
+            const SizedBox(height: 24),
+            Wrap(
+              spacing: 24,
+              runSpacing: 24,
+              children: allServerEvents
+                  .map((e) => _EventCard(event: e))
+                  .toList(),
             ),
           ],
         ),
@@ -64,28 +152,24 @@ class StudentEventScreen extends StatelessWidget {
 }
 
 class _EventCard extends StatelessWidget {
-  final String title;
-  final String date;
-  final String location;
-  final List<String> tags;
-  final MaterialColor color;
+  final EventModel event;
 
-  const _EventCard({
-    required this.title,
-    required this.date,
-    required this.location,
-    required this.tags,
-    required this.color,
-  });
+  const _EventCard({required this.event});
 
   @override
   Widget build(BuildContext context) {
+    // Check if Dark Theme is active
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       width: 350,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.shade100, width: 2),
+        border: Border.all(
+          color: isDark ? event.color.shade900 : event.color.shade100,
+          width: 2,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -94,7 +178,9 @@ class _EventCard extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: color.shade50,
+              color: isDark
+                  ? event.color.shade900.withValues(alpha: 0.4)
+                  : event.color.shade50,
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(14),
               ),
@@ -107,13 +193,17 @@ class _EventCard extends StatelessWidget {
                     Icon(
                       Icons.calendar_today_rounded,
                       size: 16,
-                      color: color.shade700,
+                      color: isDark
+                          ? event.color.shade300
+                          : event.color.shade700,
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      date,
+                      event.date,
                       style: TextStyle(
-                        color: color.shade700,
+                        color: isDark
+                            ? event.color.shade300
+                            : event.color.shade700,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -121,7 +211,7 @@ class _EventCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  title,
+                  event.title,
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -143,11 +233,13 @@ class _EventCard extends StatelessWidget {
                       color: Colors.grey,
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      location,
-                      style: const TextStyle(
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Text(
+                        event.location,
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -156,7 +248,7 @@ class _EventCard extends StatelessWidget {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: tags
+                  children: event.tags
                       .map(
                         (tag) => Container(
                           padding: const EdgeInsets.symmetric(
@@ -164,7 +256,9 @@ class _EventCard extends StatelessWidget {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
+                            color: isDark
+                                ? Colors.grey.shade900
+                                : Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -182,11 +276,25 @@ class _EventCard extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      if (event.isTeamRequired) {
+                        // Navigate to Team Screen to create a room
+                        context.go('/student/teams');
+                      } else {
+                        // Join logic
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Joined successfully!')),
+                        );
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: color.shade600,
+                      backgroundColor: event.color.shade600,
                     ),
-                    child: const Text('Register'),
+                    child: Text(
+                      event.isTeamRequired
+                          ? 'Create Room (Team Required)'
+                          : 'Join Event',
+                    ),
                   ),
                 ),
               ],

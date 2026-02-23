@@ -14,6 +14,8 @@ class TehAisApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'Teh Ais',
       theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.dark, // Enforce dark theme globally globally
       routerConfig: appRouter,
       debugShowCheckedModeBanner: false,
     );
