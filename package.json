@@ -2,9 +2,12 @@
   "name": "kitahack1_6",
   "version": "1.0.0",
   "description": "A new Flutter project.",
-  "main": "index.js",
   "scripts": {
-    "build": "if [ ! -d \"flutter\" ]; then git clone https://github.com/flutter/flutter.git -b stable; fi && export PATH=\"$PATH:`pwd`/flutter/bin\" && flutter/bin/flutter build web"
+    "build": "if [ ! -d \"flutter\" ]; then git clone https://github.com/flutter/flutter.git -b stable; fi && export PATH=\"$PATH:`pwd`/flutter/bin\" && flutter/bin/flutter build web",
+    "start": "npx serve -s build/web -l ${PORT:-8080}"
+  },
+  "dependencies": {
+    "serve": "^14.2.4"
   },
   "keywords": [],
   "author": "",
