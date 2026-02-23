@@ -1,0 +1,4 @@
+runConfig:
+  cpu: 1
+  memoryMiB: 512
+  concurrency: 80
