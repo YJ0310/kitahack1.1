@@ -1,0 +1,36 @@
+Based on the meeting discussion, here is the backend framework and technical requirements tailored for your project. The backend development task is assigned to Ruo Qian, with support from the team.
+
+### 1. Technology Stack & Environment
+*   **Programming Language:** The backend will be written in **JavaScript**.
+*   **Database Integration:** It must connect to **Google Firebase** instead of MongoDB. The API keys and Google Cloud credits will be provided by Yin Jia.
+*   **Version Control:** The backend code needs to be pushed to the project's **GitHub** repository (using specific branches managed by Yin Jia) so that the codebase is synced across the team. AI coding assistants can be actively used to help generate the base code.
+
+### 2. Core Role & Architecture
+The backend acts as the data processor between the "forgetful" frontend and the database. Its main job is to:
+1. Receive specific requests from the frontend.
+2. Validate the incoming data.
+3. Open the "drawer" (database), execute logical operations (like checking records or calculating scores), and save the updated data.
+4. Return a response (success or error) back to the frontend.
+
+### 3. API Framework & Request Handling
+The backend must provide structured Application Programming Interfaces (APIs) for the frontend to communicate with.
+*   **HTTP Methods:** Use appropriate methods such as **`GET`** (to fetch data), **`PUT`** (to update data), and **`POST`** (to submit new data, like quiz scores).
+*   **URL Parameters (Slugs):** Use dynamic variables in the URL (referred to as "slugs") to identify specific targets. For example, using a slug to tell the backend which country's progress needs to be updated.
+*   **Request Body & User ID:** The backend must extract the **User ID** to differentiate between users. It must also extract necessary variables from the `request body` sent by the frontend (e.g., `score` and `total_question`).
+
+### 4. Data Validation & Status Codes
+The backend must have strict error handling and return accurate HTTP status codes to the frontend.
+*   **Status 200 (Success):** The operation was successful, and the backend returns the required data or a success message (`success: true`).
+*   **Status 400 (Client Error):** The backend must reject the request if the frontend sends invalid or missing data (e.g., submitting an alphabet letter instead of a numerical score, or forgetting to include the `total_question` variable).
+*   **Status 404 (Not Found):** Returned if the backend searches the database but cannot find the specific User ID.
+*   **Status 500 (Server Error):** Returned if the backend itself makes an error, such as crashing, failing to connect to the database, or losing the database directory.
+
+### 5. Database Logic Implementation
+When processing data, the backend must follow these logical steps:
+*   **Check Existing Records:** Search the database to see if the user already has an existing record (e.g., a specific country's progress folder). If they do not, the backend must create a new entry for them.
+*   **Perform Calculations:** Execute required updates, such as incrementing the total attempts (`attempts + 1`), recording the current timestamp (`now`), or replacing the highest score if the new score is higher.
+*   **Asynchronous Saving (`await`):** This is highly critical. The backend must use the **`await`** function when saving data to the database. Because the computer processes extremely fast, failing to command the backend to "wait" for the database to finish saving will result in runtime errors and cause the backend to return an empty response to the frontend. 
+
+### 6. Team Collaboration Requirements
+*   **Database Schema:** The backend developer must work with the database developer (Jia Qian) to get the "database manual" (Data Schema/Model). This manual dictates how the backend should read the database, what the variables are named, and what the default values should be.
+*   **Frontend Alignment:** The backend must clearly communicate to the frontend developer exactly what parameters and variables are required in the request body, otherwise the requests will fail.

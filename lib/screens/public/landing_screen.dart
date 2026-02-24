@@ -100,7 +100,7 @@ class _LandingScreenState extends State<LandingScreen> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: Image.asset(
-                            'assets/favicon.ico',
+                            'assets/logo.png',
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -511,7 +511,7 @@ class _HeroSection extends StatelessWidget {
                                     ),
                                     child: ClipOval(
                                       child: Image.asset(
-                                        'assets/favicon.ico',
+                                        'assets/logo.png',
                                         fit: BoxFit.cover,
                                       ),
                                     ),
@@ -887,10 +887,7 @@ class _CTASection extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: ClipOval(
-                      child: Image.asset(
-                        'assets/favicon.ico',
-                        fit: BoxFit.cover,
-                      ),
+                      child: Image.asset('assets/logo.png', fit: BoxFit.cover),
                     ),
                   ),
                 )
@@ -1010,7 +1007,7 @@ class _Footer extends StatelessWidget {
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
                                   child: Image.asset(
-                                    'assets/favicon.ico',
+                                    'assets/logo.png',
                                     fit: BoxFit.cover,
                                   ),
                                 ),
