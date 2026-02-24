@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 8080;
 app.use(express.static(path.join(__dirname, 'build/web')));
 
 // Route all other requests to index.html to support Flutter's path routing (e.g., go_router)
-app.get('*', (req, res) => {
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'build/web/index.html'));
 });
 
