@@ -2,15 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Premium Next.js / Vite style color palette
-  static const Color primaryColor = Color(0xFF6366F1); // Indigo 500
-  static const Color primaryDarkColor = Color(0xFF4F46E5); // Indigo 600
-  static const Color secondaryColor = Color(0xFF14B8A6); // Teal 500
-  static const Color backgroundColor = Color(
-    0xFFF4F4F5,
-  ); // Zinc 100 for subtle contrast
+  // Kitahack Brand Color Palette
+  static const Color primaryColor = Color(0xFF8C5535); // Brown
+  static const Color primaryDarkColor = Color(0xFF8C4C35); // Darker Brown
+  static const Color secondaryColor = Color(0xFFBF8E63); // Tan / Ochre
+  static const Color backgroundColor = Color(0xFFD9BFA0); // Beige / Light Tan
   static const Color surfaceColor = Colors.white;
-  static const Color textPrimaryColor = Color(0xFF18181B); // Zinc 900
+  static const Color textPrimaryColor = Color(0xFF0D0D0D); // Almost Black
   static const Color textSecondaryColor = Color(0xFF71717A); // Zinc 500
 
   // Accent colors for dynamic dashboard
