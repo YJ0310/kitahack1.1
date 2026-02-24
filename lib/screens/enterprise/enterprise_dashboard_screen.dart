@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_theme.dart';
 
 class EnterpriseDashboardScreen extends StatelessWidget {
@@ -6,281 +7,675 @@ class EnterpriseDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isWide = MediaQuery.of(context).size.width > 900;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(32.0),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Enterprise Dashboard',
-                  style: Theme.of(context).textTheme.displayMedium,
+            // Welcome Banner
+            _WelcomeBanner(isDark: isDark).animate().fadeIn(duration: 500.ms),
+            const SizedBox(height: 20),
+            // Stats Row
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: isWide ? 4 : 2,
+              crossAxisSpacing: 14,
+              mainAxisSpacing: 14,
+              childAspectRatio: isWide ? 2.0 : 1.8,
+              children: const [
+                _StatCard(
+                  icon: Icons.people_rounded,
+                  label: 'Total Candidates',
+                  value: '2,847',
+                  change: '+12%',
+                  changeUp: true,
+                  color: Colors.purple,
                 ),
-                ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.add),
-                  label: const Text('Publish Event/Hackathon'),
+                _StatCard(
+                  icon: Icons.send_rounded,
+                  label: 'Invites Sent',
+                  value: '156',
+                  change: '+24',
+                  changeUp: true,
+                  color: Colors.blue,
+                ),
+                _StatCard(
+                  icon: Icons.handshake_rounded,
+                  label: 'Accepted',
+                  value: '43',
+                  change: '28%',
+                  changeUp: true,
+                  color: Colors.green,
+                ),
+                _StatCard(
+                  icon: Icons.event_rounded,
+                  label: 'Active Events',
+                  value: '8',
+                  change: '',
+                  changeUp: true,
+                  color: Colors.orange,
                 ),
               ],
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Manage your hiring plans, hackathons, and review potential candidates.',
-            ),
-            const SizedBox(height: 48),
-
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.purple.shade50, Colors.blue.shade50],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.purple.shade100, width: 2),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.search_rounded, color: Colors.purple),
-                      const SizedBox(width: 8),
-                      Text(
-                        'AI Semantic Candidate Search',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.purple.shade700,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    decoration: InputDecoration(
-                      hintText:
-                          'e.g. "Looking for a CS student who has experience in Fintech and UI design"',
-                      filled: true,
-                      fillColor: Theme.of(context).cardTheme.color,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      suffixIcon: Container(
-                        margin: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.purple,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.arrow_forward,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 48),
-
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Column(
+            ).animate().fadeIn(delay: 100.ms, duration: 500.ms),
+            const SizedBox(height: 24),
+            // Two-column: Pipeline + Recent Activity
+            isWide
+                ? Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Active Hiring Plans',
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          TextButton.icon(
-                             onPressed: () {},
-                             icon: const Icon(Icons.settings, size: 16),
-                             label: const Text('Configure Requirements'),
-                          )
-                        ],
+                      Expanded(
+                        child: _PipelineSection(
+                          isDark: isDark,
+                        ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
                       ),
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardTheme.color,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.purple.shade100,
-                            width: 2,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Summer Internship 2026',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Required: Flutter, User Research, Agile',
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: const [
-                                _StatBadge('45', 'Views'),
-                                SizedBox(width: 16),
-                                _StatBadge('12', 'Applications'),
-                              ],
-                            ),
-                          ],
-                        ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _RecentActivity(
+                          isDark: isDark,
+                        ).animate().fadeIn(delay: 250.ms, duration: 500.ms),
                       ),
-                      const SizedBox(height: 48),
-                      Text(
-                        'Talent Cultivation Pipeline',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      const Text('Students actively learning your required skills (Development Tags).'),
-                      const SizedBox(height: 24),
-                      _buildPipelineCard(context, 'Jessica Lin', 'In Progress: Flutter (2 weeks)', 65),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      _PipelineSection(
+                        isDark: isDark,
+                      ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
                       const SizedBox(height: 16),
-                      _buildPipelineCard(context, 'Ahmad Faizal', 'Completed: User Research Course', 100),
+                      _RecentActivity(
+                        isDark: isDark,
+                      ).animate().fadeIn(delay: 250.ms, duration: 500.ms),
                     ],
                   ),
-                ),
-                const SizedBox(width: 32),
-                Expanded(
-                  flex: 1,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Bookmarked Talents',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardTheme.color,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: Colors.blue.shade100,
-                            child: const Icon(Icons.person, color: Colors.blue),
-                          ),
-                          title: const Text(
-                            'Alex Chen',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: const Text('98% Match - Flutter'),
-                          trailing: const Icon(
-                            Icons.bookmark,
-                            color: Colors.purple,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            const SizedBox(height: 24),
+            // Top Candidates
+            _TopCandidates(
+              isDark: isDark,
+              isWide: isWide,
+            ).animate().fadeIn(delay: 300.ms, duration: 500.ms),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildPipelineCard(BuildContext context, String name, String status, double progress) {
+class _WelcomeBanner extends StatelessWidget {
+  final bool isDark;
+  const _WelcomeBanner({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.purple.shade100),
+        gradient: const LinearGradient(
+          colors: [Colors.purple, Colors.deepPurple],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.purple.withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            backgroundColor: progress == 100 ? Colors.green.shade100 : Colors.orange.shade100,
-            child: Icon(
-              progress == 100 ? Icons.check : Icons.sync,
-              color: progress == 100 ? Colors.green : Colors.orange,
+          const Text(
+            'Welcome back, TechCorp 👋',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                Text(status, style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
-              ],
+          const SizedBox(height: 6),
+          Text(
+            'Your talent pipeline is growing. 12 new candidates matched this week.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.8),
+              fontSize: 14,
             ),
           ),
-          if (progress == 100)
-            ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              ElevatedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.search_rounded, size: 16),
+                label: const Text('Search Candidates'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.purple,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
               ),
-              child: const Text('Offer Interview'),
-            ),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.analytics_rounded, size: 16),
+                label: const Text('View Reports'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white54),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-class _StatBadge extends StatelessWidget {
-  final String count;
-  final String label;
-
-  const _StatBadge(this.count, this.label);
+class _StatCard extends StatelessWidget {
+  final IconData icon;
+  final String label, value, change;
+  final bool changeUp;
+  final Color color;
+  const _StatCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.change,
+    required this.changeUp,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : AppTheme.backgroundColor.withValues(alpha: 0.6),
+        ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 16, color: color),
+              ),
+              const Spacer(),
+              if (change.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    change,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const Spacer(),
           Text(
-            count,
-            style: const TextStyle(
+            value,
+            style: TextStyle(
+              fontSize: 22,
               fontWeight: FontWeight.bold,
-              fontSize: 18,
-              color: Colors.purple,
+              color: isDark ? Colors.white : AppTheme.textPrimaryColor,
             ),
           ),
-          const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.grey,
-              fontWeight: FontWeight.w600,
+            style: TextStyle(
+              fontSize: 11,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.5)
+                  : AppTheme.primaryColor.withValues(alpha: 0.6),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PipelineSection extends StatelessWidget {
+  final bool isDark;
+  const _PipelineSection({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final pipeline = [
+      {'name': 'Screening', 'count': 24, 'color': Colors.blue},
+      {'name': 'Interview', 'count': 12, 'color': Colors.orange},
+      {'name': 'Technical', 'count': 8, 'color': Colors.purple},
+      {'name': 'Offer', 'count': 3, 'color': Colors.green},
+    ];
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : AppTheme.backgroundColor.withValues(alpha: 0.6),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Recruitment Pipeline',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+            ),
+          ),
+          const SizedBox(height: 14),
+          ...pipeline.map((p) {
+            final count = p['count'] as int;
+            final color = p['color'] as Color;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      p['name'] as String,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.7)
+                            : AppTheme.primaryColor.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '$count',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: count / 30,
+                        minHeight: 6,
+                        backgroundColor: isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : AppTheme.backgroundColor.withValues(alpha: 0.5),
+                        valueColor: AlwaysStoppedAnimation(color),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecentActivity extends StatelessWidget {
+  final bool isDark;
+  const _RecentActivity({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final activities = [
+      {
+        'icon': Icons.person_add_rounded,
+        'text': 'New candidate: Sarah M.',
+        'time': '2h ago',
+        'color': Colors.blue,
+      },
+      {
+        'icon': Icons.check_circle_rounded,
+        'text': 'Alex Lee accepted invite',
+        'time': '5h ago',
+        'color': Colors.green,
+      },
+      {
+        'icon': Icons.event_rounded,
+        'text': 'Kitahack 2026 starts in 3 weeks',
+        'time': '1d ago',
+        'color': Colors.orange,
+      },
+      {
+        'icon': Icons.star_rounded,
+        'text': '3 new top matches found',
+        'time': '2d ago',
+        'color': Colors.purple,
+      },
+    ];
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : AppTheme.backgroundColor.withValues(alpha: 0.6),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Recent Activity',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+            ),
+          ),
+          const SizedBox(height: 14),
+          ...activities.map(
+            (a) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: (a['color'] as Color).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      a['icon'] as IconData,
+                      size: 14,
+                      color: a['color'] as Color,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      a['text'] as String,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.7)
+                            : AppTheme.primaryColor.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    a['time'] as String,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.3)
+                          : AppTheme.primaryColor.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TopCandidates extends StatelessWidget {
+  final bool isDark;
+  final bool isWide;
+  const _TopCandidates({required this.isDark, required this.isWide});
+
+  @override
+  Widget build(BuildContext context) {
+    final candidates = [
+      {
+        'name': 'Alex Lee',
+        'faculty': 'IT & Business',
+        'match': 98,
+        'tags': ['Python', 'Finance', 'Data'],
+      },
+      {
+        'name': 'Sarah Rahman',
+        'faculty': 'Computer Science',
+        'match': 92,
+        'tags': ['Flutter', 'Firebase', 'UI/UX'],
+      },
+      {
+        'name': 'Wei Jun',
+        'faculty': 'Engineering',
+        'match': 87,
+        'tags': ['IoT', 'Embedded', 'C++'],
+      },
+      {
+        'name': 'Priya Nair',
+        'faculty': 'Data Science',
+        'match': 85,
+        'tags': ['ML', 'Statistics', 'R'],
+      },
+    ];
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : AppTheme.backgroundColor.withValues(alpha: 0.6),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Top Candidates',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'View All',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.purple,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ...candidates.map((c) {
+            final tags = c['tags'] as List;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.04)
+                      : AppTheme.backgroundColor.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.purple.withValues(alpha: 0.2),
+                      child: Text(
+                        (c['name'] as String)[0],
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            c['name'] as String,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: isDark
+                                  ? Colors.white
+                                  : AppTheme.textPrimaryColor,
+                            ),
+                          ),
+                          Text(
+                            c['faculty'] as String,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.5)
+                                  : AppTheme.primaryColor.withValues(
+                                      alpha: 0.6,
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 4,
+                            children: tags
+                                .map(
+                                  (t) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.purple.withValues(
+                                        alpha: 0.08,
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      t as String,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.purple,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${c['match']}%',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: const Text('Invite'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
         ],
       ),
     );
