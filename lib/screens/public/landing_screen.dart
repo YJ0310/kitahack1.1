@@ -100,7 +100,7 @@ class _LandingScreenState extends State<LandingScreen> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: Image.asset(
-                            'assets/logo.png',
+                            'assets/favicon.ico',
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -342,7 +342,7 @@ class _HeroSection extends StatelessWidget {
                                         .scaleXY(end: 1.5, duration: 800.ms),
                                     const SizedBox(width: 8),
                                     Text(
-                                      'Connect • Build • Sip',
+                                      'Bridging Disciplines, Empowering Innovation',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: isDark
@@ -369,9 +369,11 @@ class _HeroSection extends StatelessWidget {
                                         height: 1.1,
                                       ),
                                   children: [
-                                    const TextSpan(text: 'Build Connections\n'),
+                                    const TextSpan(
+                                      text: 'The Ultimate Cross-Disciplinary\n',
+                                    ),
                                     TextSpan(
-                                      text: 'Before Your Teh Ais Melts',
+                                      text: 'Talent Platform',
                                       style: TextStyle(
                                         color: isDark
                                             ? AppTheme.secondaryColor
@@ -391,7 +393,7 @@ class _HeroSection extends StatelessWidget {
                                   maxWidth: 700,
                                 ),
                                 child: Text(
-                                  'The ultimate platform to connect with peers, discover collaborators, and build amazing projects — all in the time it takes to finish your iced tea. ☕',
+                                  'Connect with peers across faculties, discover events, and form the perfect team — all before your Teh Ais melts! ☕',
                                   textAlign: TextAlign.center,
                                   style: Theme.of(context).textTheme.bodyLarge
                                       ?.copyWith(
@@ -475,7 +477,7 @@ class _HeroSection extends StatelessWidget {
                           Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  _StatItem("5min", "Avg. Connection Time"),
+                                  _StatItem("5min", "Avg. Match Time"),
                                   const SizedBox(width: 48),
                                   _StatItem("1000+", "Teams Formed"),
                                   const SizedBox(width: 48),
@@ -509,7 +511,7 @@ class _HeroSection extends StatelessWidget {
                                     ),
                                     child: ClipOval(
                                       child: Image.asset(
-                                        'assets/logo.png',
+                                        'assets/favicon.ico',
                                         fit: BoxFit.cover,
                                       ),
                                     ),
@@ -574,28 +576,28 @@ class _StatItem extends StatelessWidget {
 class _FeaturesSection extends StatelessWidget {
   final List<Map<String, dynamic>> features = [
     {
+      'icon': Icons.group,
+      'title': "Smart Team Pairing",
+      'desc':
+          "Automatically find teammates with complementary skills based on profile tags and interests.",
+    },
+    {
+      'icon': Icons.calendar_today,
+      'title': "Targeted Events",
+      'desc':
+          "Discover events tailored to your interests and development goals directly on campus.",
+    },
+    {
       'icon': Icons.bolt,
-      'title': "Instant Team Matching",
+      'title': "Skill Development",
       'desc':
-          "Find the perfect teammates with complementary skills in seconds. Our smart algorithm pairs you based on interests, skills, and project goals.",
+          "Track your growth from \"interested\" to \"mastered\" through real-world collaborations.",
     },
     {
-      'icon': Icons.event_available,
-      'title': "Quick Event Discovery",
+      'icon': Icons.emoji_events,
+      'title': "Enterprise Connections",
       'desc':
-          "Browse and join hackathons, workshops, and networking events tailored to your interests. Never miss an opportunity again.",
-    },
-    {
-      'icon': Icons.timer,
-      'title': "Speed Networking",
-      'desc':
-          "Connect with like-minded individuals through quick 5-minute chats. Build meaningful relationships in the time of a teh ais break.",
-    },
-    {
-      'icon': Icons.trending_up,
-      'title': "Skill Showcase",
-      'desc':
-          "Display your talents and track your growth from beginner to expert. Let your skills speak and attract the right opportunities.",
+          "Showcase your skills to hiring companies and find scholarship opportunities.",
     },
   ];
 
@@ -884,7 +886,12 @@ class _CTASection extends StatelessWidget {
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Image.asset('assets/logo.png', fit: BoxFit.cover),
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/favicon.ico',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                   ),
                 )
                 .animate(onPlay: (c) => c.repeat(reverse: true))
@@ -914,7 +921,7 @@ class _CTASection extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ElevatedButton(
+                ElevatedButton.icon(
                   onPressed: () => context.go('/login'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
@@ -926,11 +933,13 @@ class _CTASection extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
+                    elevation: 5,
                   ),
-                  child: const Text(
-                    "Get Started Free",
+                  label: const Text(
+                    "Join the Network",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
+                  icon: const Icon(Icons.arrow_forward),
                 ),
                 const SizedBox(width: 16),
                 OutlinedButton(
@@ -1001,7 +1010,7 @@ class _Footer extends StatelessWidget {
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
                                   child: Image.asset(
-                                    'assets/logo.png',
+                                    'assets/favicon.ico',
                                     fit: BoxFit.cover,
                                   ),
                                 ),
