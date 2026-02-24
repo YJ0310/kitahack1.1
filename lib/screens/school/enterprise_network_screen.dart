@@ -58,7 +58,7 @@ class _CompanyCard extends StatelessWidget {
     return Container(
       width: 350,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(

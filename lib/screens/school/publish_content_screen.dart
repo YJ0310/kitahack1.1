@@ -25,7 +25,7 @@ class PublishContentScreen extends StatelessWidget {
               constraints: const BoxConstraints(maxWidth: 800),
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardTheme.color,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(

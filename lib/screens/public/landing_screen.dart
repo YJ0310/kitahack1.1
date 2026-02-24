@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_theme.dart';
+import '../../main.dart';
 
 class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});
@@ -9,7 +10,7 @@ class LandingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           _buildAppBar(context),
@@ -24,7 +25,9 @@ class LandingScreen extends StatelessWidget {
   Widget _buildAppBar(BuildContext context) {
     return SliverAppBar(
       pinned: true,
-      backgroundColor: Colors.white.withValues(alpha: 0.9),
+      backgroundColor: Theme.of(
+        context,
+      ).scaffoldBackgroundColor.withValues(alpha: 0.9),
       elevation: 0,
       title: Row(
         children: [
@@ -47,6 +50,20 @@ class LandingScreen extends StatelessWidget {
         ],
       ),
       actions: [
+        ValueListenableBuilder<ThemeMode>(
+          valueListenable: themeNotifier,
+          builder: (context, currentMode, child) {
+            final isDark = currentMode == ThemeMode.dark;
+            return IconButton(
+              icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+              color: AppTheme.primaryColor,
+              onPressed: () {
+                themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark;
+              },
+            );
+          },
+        ),
+        const SizedBox(width: 8),
         TextButton(onPressed: () {}, child: const Text('About')),
         const SizedBox(width: 16),
         ElevatedButton(

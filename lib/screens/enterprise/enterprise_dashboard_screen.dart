@@ -7,7 +7,7 @@ class EnterpriseDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(32.0),
         child: Column(
@@ -67,7 +67,7 @@ class EnterpriseDashboardScreen extends StatelessWidget {
                       hintText:
                           'e.g. "Looking for a CS student who has experience in Fintech and UI design"',
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).cardTheme.color,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
@@ -116,7 +116,7 @@ class EnterpriseDashboardScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).cardTheme.color,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: Colors.purple.shade100,
@@ -176,7 +176,7 @@ class EnterpriseDashboardScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).cardTheme.color,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: Colors.grey.shade200),
                         ),
@@ -211,7 +211,7 @@ class EnterpriseDashboardScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.purple.shade100),
       ),

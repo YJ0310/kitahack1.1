@@ -15,7 +15,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(32.0),
         child: Column(
@@ -103,7 +103,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                   ExpansionPanel(
                     isExpanded: _isExpanded[0],
                     canTapOnHeader: true,
-                    backgroundColor: Colors.white,
+                    backgroundColor: Theme.of(context).cardTheme.color,
                     headerBuilder: (BuildContext context, bool isExpanded) {
                       return const ListTile(
                         leading: Icon(
@@ -178,7 +178,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                   ExpansionPanel(
                     isExpanded: _isExpanded[1],
                     canTapOnHeader: true,
-                    backgroundColor: Colors.white,
+                    backgroundColor: Theme.of(context).cardTheme.color,
                     headerBuilder: (BuildContext context, bool isExpanded) {
                       return const ListTile(
                         leading: Icon(Icons.code, color: AppTheme.accentOrange),
@@ -218,7 +218,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                   ExpansionPanel(
                     isExpanded: _isExpanded[2],
                     canTapOnHeader: true,
-                    backgroundColor: Colors.white,
+                    backgroundColor: Theme.of(context).cardTheme.color,
                     headerBuilder: (BuildContext context, bool isExpanded) {
                       return const ListTile(
                         leading: Icon(
@@ -328,7 +328,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: isBorderOnly ? Colors.white : color.withValues(alpha: 0.1),
+        color: isBorderOnly ? Colors.transparent : color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
         border: isBorderOnly
             ? Border.all(color: color, width: 1.5)
@@ -363,9 +363,9 @@ class _PortfolioCard extends StatelessWidget {
       width: 400,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200, width: 2),
+        border: Border.all(color: Theme.of(context).dividerColor, width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -384,7 +384,7 @@ class _PortfolioCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Text(description, style: const TextStyle(color: Colors.black87)),
+          Text(description),
           const SizedBox(height: 16),
           Wrap(
             spacing: 8,
@@ -397,14 +397,16 @@ class _PortfolioCard extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: Theme.of(
+                        context,
+                      ).dividerColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       tag,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Colors.black54,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
                       ),
                     ),
                   ),
