@@ -39,7 +39,7 @@ class ResponsiveShell extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              const Icon(Icons.hub_rounded, size: 48, color: Colors.blue),
+              Image.asset('assets/logo.png', width: 48, height: 48),
               const SizedBox(height: 16),
               Text(
                 'Teh Ais Portal',
