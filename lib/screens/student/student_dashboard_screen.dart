@@ -4,6 +4,19 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
 
+// ─── Temp Chat Data ───────────────────────────────────────────────────────────
+class _ChatMsg {
+  final String sender, text;
+  final bool isMe;
+  final DateTime time;
+  _ChatMsg({
+    required this.sender,
+    required this.text,
+    required this.isMe,
+    DateTime? time,
+  }) : time = time ?? DateTime.now();
+}
+
 class StudentDashboardScreen extends StatefulWidget {
   const StudentDashboardScreen({super.key});
 
@@ -13,6 +26,56 @@ class StudentDashboardScreen extends StatefulWidget {
 
 class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   late final List<Map<String, dynamic>> _aiInsights;
+
+  // ── Temp Chat ──
+  bool _chatOpen = false;
+  final List<_ChatMsg> _messages = [
+    _ChatMsg(
+      sender: 'Sarah Lee',
+      text: 'Hey! Are we meeting before Kitahack?',
+      isMe: false,
+      time: DateTime.now().subtract(const Duration(minutes: 12)),
+    ),
+    _ChatMsg(
+      sender: 'Ahmad',
+      text: 'Yeah, let\'s sync at 3pm today 👍',
+      isMe: true,
+      time: DateTime.now().subtract(const Duration(minutes: 10)),
+    ),
+    _ChatMsg(
+      sender: 'John Tan',
+      text: 'I\'ll be there. Sharing the slides now.',
+      isMe: false,
+      time: DateTime.now().subtract(const Duration(minutes: 2)),
+    ),
+  ];
+  final _msgCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+
+  void _sendMsg() {
+    final txt = _msgCtrl.text.trim();
+    if (txt.isEmpty) return;
+    setState(() {
+      _messages.add(_ChatMsg(sender: 'You', text: txt, isMe: true));
+      _msgCtrl.clear();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _msgCtrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -125,138 +188,159 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // --- Welcome Banner ---
-            _WelcomeBanner(isDark: isDark).animate().fadeIn(duration: 500.ms),
-            const SizedBox(height: 24),
+      floatingActionButton: _ChatFab(
+        open: _chatOpen,
+        onTap: () => setState(() => _chatOpen = !_chatOpen),
+      ).animate().fadeIn(delay: 600.ms),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // --- Welcome Banner ---
+                _WelcomeBanner(
+                  isDark: isDark,
+                ).animate().fadeIn(duration: 500.ms),
+                const SizedBox(height: 24),
 
-            // --- Stats Row ---
-            _StatsGrid(isWide: isWide)
-                .animate()
-                .fadeIn(delay: 100.ms, duration: 500.ms)
-                .slideY(begin: 0.1, end: 0),
-            const SizedBox(height: 28),
+                // --- Stats Row ---
+                _StatsGrid(isWide: isWide)
+                    .animate()
+                    .fadeIn(delay: 100.ms, duration: 500.ms)
+                    .slideY(begin: 0.1, end: 0),
+                const SizedBox(height: 28),
 
-            // --- AI Insights ---
-            _SectionHeader(
-              title: 'AI Executive Summary',
-              icon: Icons.auto_awesome_rounded,
-              iconColor: AppTheme.accentPurple,
-            ).animate().fadeIn(delay: 150.ms, duration: 400.ms),
-            const SizedBox(height: 12),
-            _AIInsightsList(
-              insights: _aiInsights,
-            ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
-            const SizedBox(height: 28),
+                // --- AI Insights ---
+                _SectionHeader(
+                  title: 'AI Executive Summary',
+                  icon: Icons.auto_awesome_rounded,
+                  iconColor: AppTheme.accentPurple,
+                ).animate().fadeIn(delay: 150.ms, duration: 400.ms),
+                const SizedBox(height: 12),
+                _AIInsightsList(
+                  insights: _aiInsights,
+                ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
+                const SizedBox(height: 28),
 
-            // --- Events + Teams ---
-            if (isWide)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _SectionHeader(
-                          title: 'Upcoming Events',
-                          icon: Icons.calendar_today_rounded,
-                          iconColor: AppTheme.primaryColor,
-                          actionText: 'View All',
-                          onAction: () => context.go('/student/events'),
+                // --- Events + Teams ---
+                if (isWide)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _SectionHeader(
+                              title: 'Upcoming Events',
+                              icon: Icons.calendar_today_rounded,
+                              iconColor: AppTheme.primaryColor,
+                              actionText: 'View All',
+                              onAction: () => context.go('/student/events'),
+                            ),
+                            const SizedBox(height: 12),
+                            ..._upcomingEvents.map(
+                              (e) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _EventCard(event: e, isDark: isDark),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 12),
-                        ..._upcomingEvents.map(
-                          (e) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _EventCard(event: e, isDark: isDark),
-                          ),
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _SectionHeader(
+                              title: 'My Teams',
+                              icon: Icons.groups_rounded,
+                              iconColor: AppTheme.secondaryColor,
+                              actionText: '+ New',
+                              onAction: () => context.go('/student/teams'),
+                            ),
+                            const SizedBox(height: 12),
+                            ..._myTeams.map(
+                              (t) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _TeamCard(team: t, isDark: isDark),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _SectionHeader(
-                          title: 'My Teams',
-                          icon: Icons.groups_rounded,
-                          iconColor: AppTheme.secondaryColor,
-                          actionText: '+ New',
-                          onAction: () => context.go('/student/teams'),
+                      ),
+                    ],
+                  ).animate().fadeIn(delay: 250.ms, duration: 500.ms)
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SectionHeader(
+                        title: 'Upcoming Events',
+                        icon: Icons.calendar_today_rounded,
+                        iconColor: AppTheme.primaryColor,
+                        actionText: 'View All',
+                        onAction: () => context.go('/student/events'),
+                      ),
+                      const SizedBox(height: 12),
+                      ..._upcomingEvents.map(
+                        (e) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _EventCard(event: e, isDark: isDark),
                         ),
-                        const SizedBox(height: 12),
-                        ..._myTeams.map(
-                          (t) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _TeamCard(team: t, isDark: isDark),
-                          ),
+                      ),
+                      const SizedBox(height: 20),
+                      _SectionHeader(
+                        title: 'My Teams',
+                        icon: Icons.groups_rounded,
+                        iconColor: AppTheme.secondaryColor,
+                        actionText: '+ New',
+                        onAction: () => context.go('/student/teams'),
+                      ),
+                      const SizedBox(height: 12),
+                      ..._myTeams.map(
+                        (t) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _TeamCard(team: t, isDark: isDark),
                         ),
-                      ],
-                    ),
-                  ),
-                ],
-              ).animate().fadeIn(delay: 250.ms, duration: 500.ms)
-            else
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _SectionHeader(
-                    title: 'Upcoming Events',
-                    icon: Icons.calendar_today_rounded,
-                    iconColor: AppTheme.primaryColor,
-                    actionText: 'View All',
-                    onAction: () => context.go('/student/events'),
-                  ),
-                  const SizedBox(height: 12),
-                  ..._upcomingEvents.map(
-                    (e) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _EventCard(event: e, isDark: isDark),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  _SectionHeader(
-                    title: 'My Teams',
-                    icon: Icons.groups_rounded,
-                    iconColor: AppTheme.secondaryColor,
-                    actionText: '+ New',
-                    onAction: () => context.go('/student/teams'),
-                  ),
-                  const SizedBox(height: 12),
-                  ..._myTeams.map(
-                    (t) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _TeamCard(team: t, isDark: isDark),
-                    ),
-                  ),
-                ],
-              ).animate().fadeIn(delay: 250.ms, duration: 500.ms),
+                      ),
+                    ],
+                  ).animate().fadeIn(delay: 250.ms, duration: 500.ms),
 
-            const SizedBox(height: 28),
-            // --- Suggested Connections ---
-            _SectionHeader(
-              title: 'Suggested for You',
-              icon: Icons.connect_without_contact_rounded,
-              iconColor: AppTheme.accentPink,
-              actionText: 'View All',
-              onAction: () => _showSuggestedDialog(context),
-            ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
-            const SizedBox(height: 12),
-            _SuggestedConnectionsGrid(
-              users: _suggestedUsers,
+                const SizedBox(height: 28),
+                // --- Suggested Connections ---
+                _SectionHeader(
+                  title: 'Suggested for You',
+                  icon: Icons.connect_without_contact_rounded,
+                  iconColor: AppTheme.accentPink,
+                  actionText: 'View All',
+                  onAction: () => _showSuggestedDialog(context),
+                ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
+                const SizedBox(height: 12),
+                _SuggestedConnectionsGrid(
+                  users: _suggestedUsers,
+                  isDark: isDark,
+                  isWide: isWide,
+                ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
+                const SizedBox(height: 80),
+              ],
+            ),
+          ),
+          // ── Temp Chat Panel ──
+          if (_chatOpen)
+            _ChatPanel(
+              messages: _messages,
+              msgCtrl: _msgCtrl,
+              scrollCtrl: _scrollCtrl,
               isDark: isDark,
-              isWide: isWide,
-            ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
-          ],
-        ),
+              onClose: () => setState(() => _chatOpen = false),
+              onSend: _sendMsg,
+            ).animate().fadeIn(duration: 200.ms).slideY(begin: 0.05, end: 0),
+        ],
       ),
     );
   }
@@ -1378,6 +1462,315 @@ class _Badge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Temp Chat FAB
+// ─────────────────────────────────────────────────────────
+class _ChatFab extends StatelessWidget {
+  final bool open;
+  final VoidCallback onTap;
+  const _ChatFab({required this.open, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: open ? Colors.grey[800] : AppTheme.primaryColor,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primaryColor.withValues(alpha: 0.35),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(
+              open ? Icons.close_rounded : Icons.chat_bubble_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
+            if (!open)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  width: 9,
+                  height: 9,
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Temp Chat Panel
+// ─────────────────────────────────────────────────────────
+class _ChatPanel extends StatelessWidget {
+  final List<_ChatMsg> messages;
+  final TextEditingController msgCtrl;
+  final ScrollController scrollCtrl;
+  final bool isDark;
+  final VoidCallback onClose;
+  final VoidCallback onSend;
+  const _ChatPanel({
+    required this.messages,
+    required this.msgCtrl,
+    required this.scrollCtrl,
+    required this.isDark,
+    required this.onClose,
+    required this.onSend,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    final tc = isDark ? Colors.white : AppTheme.textPrimaryColor;
+    final sc = isDark
+        ? Colors.white60
+        : AppTheme.primaryColor.withValues(alpha: 0.55);
+
+    return Positioned(
+      right: 16,
+      bottom: 16,
+      child: Container(
+        width: 320,
+        height: 420,
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.15),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.black.withValues(alpha: 0.07),
+          ),
+        ),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : Colors.black.withValues(alpha: 0.07),
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.chat_bubble_rounded,
+                    size: 16,
+                    color: AppTheme.primaryColor,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Team Chat',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: tc,
+                          ),
+                        ),
+                        Text(
+                          'Temporary · clears when you leave',
+                          style: TextStyle(fontSize: 10, color: sc),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: onClose,
+                    child: Icon(Icons.close_rounded, size: 18, color: sc),
+                  ),
+                ],
+              ),
+            ),
+            // Messages
+            Expanded(
+              child: ListView.builder(
+                controller: scrollCtrl,
+                padding: const EdgeInsets.all(12),
+                itemCount: messages.length,
+                itemBuilder: (ctx, i) {
+                  final msg = messages[i];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisAlignment: msg.isMe
+                          ? MainAxisAlignment.end
+                          : MainAxisAlignment.start,
+                      children: [
+                        if (!msg.isMe) ...[
+                          CircleAvatar(
+                            radius: 14,
+                            backgroundColor: AppTheme.secondaryColor,
+                            child: Text(
+                              msg.sender[0],
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: msg.isMe
+                                ? CrossAxisAlignment.end
+                                : CrossAxisAlignment.start,
+                            children: [
+                              if (!msg.isMe)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 2),
+                                  child: Text(
+                                    msg.sender,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: sc,
+                                    ),
+                                  ),
+                                ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: msg.isMe
+                                      ? AppTheme.primaryColor
+                                      : (isDark
+                                            ? Colors.white.withValues(
+                                                alpha: 0.08,
+                                              )
+                                            : Colors.black.withValues(
+                                                alpha: 0.06,
+                                              )),
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: const Radius.circular(14),
+                                    topRight: const Radius.circular(14),
+                                    bottomLeft: Radius.circular(
+                                      msg.isMe ? 14 : 4,
+                                    ),
+                                    bottomRight: Radius.circular(
+                                      msg.isMe ? 4 : 14,
+                                    ),
+                                  ),
+                                ),
+                                child: Text(
+                                  msg.text,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: msg.isMe ? Colors.white : tc,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            // Input
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 8, 8, 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.07)
+                        : Colors.black.withValues(alpha: 0.06),
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: msgCtrl,
+                      style: TextStyle(fontSize: 13, color: tc),
+                      onSubmitted: (_) => onSend(),
+                      decoration: InputDecoration(
+                        hintText: 'Message…',
+                        hintStyle: TextStyle(fontSize: 13, color: sc),
+                        filled: true,
+                        fillColor: isDark
+                            ? Colors.white.withValues(alpha: 0.06)
+                            : Colors.black.withValues(alpha: 0.04),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: onSend,
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: const BoxDecoration(
+                        color: AppTheme.primaryColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 17,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
