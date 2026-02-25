@@ -8,6 +8,7 @@ import '../screens/student/student_dashboard_screen.dart';
 import '../screens/student/student_team_screen.dart';
 import '../screens/student/student_event_screen.dart';
 import '../screens/student/student_profile_screen.dart';
+import '../screens/student/student_chat_screen.dart';
 
 import '../widgets/school_shell.dart';
 import '../screens/school/school_dashboard_screen.dart';
@@ -42,6 +43,10 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: '/student/profile',
           builder: (context, state) => const StudentProfileScreen(),
+        ),
+        GoRoute(
+          path: '/student/chat',
+          builder: (context, state) => const StudentChatScreen(),
         ),
       ],
     ),

@@ -261,6 +261,8 @@ class _TopBar extends StatelessWidget {
         return 'Teams & Pairing';
       case 'profile':
         return 'Profile & Tags';
+      case 'chat':
+        return 'Chat';
       default:
         return seg[0].toUpperCase() + seg.substring(1);
     }
@@ -410,6 +412,12 @@ class _SidebarContent extends StatelessWidget {
                   icon: Icons.person_rounded,
                   label: 'Profile & Tags',
                   path: '/student/profile',
+                  currentPath: location,
+                ),
+                _NavItem(
+                  icon: Icons.chat_bubble_rounded,
+                  label: 'Chat',
+                  path: '/student/chat',
                   currentPath: location,
                 ),
               ],
