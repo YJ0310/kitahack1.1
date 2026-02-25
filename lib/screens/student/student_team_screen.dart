@@ -629,88 +629,17 @@ class _State extends State<StudentTeamScreen> {
                 ),
                 if (_showAiPool) ...[
                   const SizedBox(height: 10),
-                  ...const [
-                    ('Lim Wei Chen', 90),
-                    ('Fatimah Ahmad', 86),
-                    ('Raj Kumar', 82),
-                  ].map(
-                    (c) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 16,
-                            backgroundColor: const Color(
-                              0xFF8B5CF6,
-                            ).withValues(alpha: 0.15),
-                            child: Text(
-                              c.$1[0],
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF8B5CF6),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              c.$1,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF0F172A),
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '${c.$2}% match',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: () {},
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryColor.withValues(
-                                  alpha: 0.1,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Text(
-                                'Invite',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.primaryColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  _AiCandidateRow(
+                    name: 'Lim Wei Chen',
+                    pct: 90,
+                    isDark: isDark,
                   ),
+                  _AiCandidateRow(
+                    name: 'Fatimah Ahmad',
+                    pct: 86,
+                    isDark: isDark,
+                  ),
+                  _AiCandidateRow(name: 'Raj Kumar', pct: 82, isDark: isDark),
                 ],
               ],
               // Actions
@@ -2862,4 +2791,85 @@ Widget _CollabCategoryBadge(String type) {
       ),
     ),
   );
+}
+
+// ─── AI Candidate Row ──────────────────────────────────────────────────────────
+class _AiCandidateRow extends StatelessWidget {
+  final String name;
+  final int pct;
+  final bool isDark;
+  const _AiCandidateRow({
+    required this.name,
+    required this.pct,
+    required this.isDark,
+  });
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+            child: Text(
+              name[0],
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF8B5CF6),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              name,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '$pct% match',
+              style: const TextStyle(
+                fontSize: 11,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () {},
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Invite',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.primaryColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
