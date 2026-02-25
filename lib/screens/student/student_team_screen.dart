@@ -75,13 +75,16 @@ class StudentTeamScreen extends StatefulWidget {
 class _StudentTeamScreenState extends State<StudentTeamScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  int _selectedTab = 0;
 
   // Room State
   String _inviteCode = 'KH-8492-AC';
   bool _isAIPoolActive = false;
+  bool _codeCopied = false;
 
-  // Group Chat State
+  // My Team Step Wizard
   bool _isTeamFormed = false;
+  int _teamStep = 1; // 1 = Finalize, 2 = Group Chat, 3 = Done
   bool _isCreatingGroup = false;
   int _countdownSeconds = 180;
   String _groupLinkError = '';
@@ -93,10 +96,21 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
   final _roomNameCtrl = TextEditingController();
   int _roomMaxMembers = 4;
 
+  // Find Rooms search
+  String _roomSearch = '';
+
+  // Join state per room (by index)
+  final Set<int> _joinedRooms = {};
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        setState(() => _selectedTab = _tabController.index);
+      }
+    });
   }
 
   @override
@@ -108,10 +122,18 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
     super.dispose();
   }
 
+  void _copyCode() async {
+    await Clipboard.setData(ClipboardData(text: _inviteCode));
+    setState(() => _codeCopied = true);
+    await Future.delayed(const Duration(milliseconds: 1500));
+    if (mounted) setState(() => _codeCopied = false);
+  }
+
   void _startCountdown() {
     setState(() {
       _isCreatingGroup = true;
       _countdownSeconds = 180;
+      _groupLinkError = '';
     });
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
@@ -142,30 +164,19 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
       setState(() {
         _isCreatingGroup = false;
         _groupLinkError = '';
+        _teamStep = 3;
       });
       _timer?.cancel();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-              SizedBox(width: 8),
-              Text('Group chat link saved!'),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
     } else {
       setState(
-        () => _groupLinkError =
-            'Invalid link. Use WhatsApp, Telegram, or Discord.',
+        () => _groupLinkError = 'Use a WhatsApp, Telegram, or Discord link.',
       );
     }
+  }
+
+  void _switchTab(int i) {
+    setState(() => _selectedTab = i);
+    _tabController.animateTo(i);
   }
 
   @override
@@ -178,7 +189,7 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
         children: [
           Column(
             children: [
-              // Header
+              // ── Header ──
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
                 child: Column(
@@ -196,7 +207,7 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
                     ).animate().fadeIn(duration: 400.ms),
                     const SizedBox(height: 4),
                     Text(
-                      'Manage your teams, rooms, and find the perfect teammates',
+                      'Find your people — no learning curve required.',
                       style: TextStyle(
                         fontSize: 14,
                         color: isDark
@@ -205,52 +216,17 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
                       ),
                     ).animate().fadeIn(delay: 50.ms, duration: 400.ms),
                     const SizedBox(height: 20),
-                    // Tab Bar
-                    Container(
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.05)
-                            : AppTheme.backgroundColor.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      padding: const EdgeInsets.all(4),
-                      child: TabBar(
-                        controller: _tabController,
-                        indicator: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              AppTheme.primaryColor,
-                              AppTheme.primaryDarkColor,
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        indicatorSize: TabBarIndicatorSize.tab,
-                        labelColor: Colors.white,
-                        unselectedLabelColor: isDark
-                            ? Colors.white.withValues(alpha: 0.5)
-                            : AppTheme.primaryColor.withValues(alpha: 0.6),
-                        labelStyle: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        unselectedLabelStyle: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        dividerColor: Colors.transparent,
-                        tabs: const [
-                          Tab(text: 'My Room'),
-                          Tab(text: 'Find Rooms'),
-                          Tab(text: 'My Team'),
-                        ],
-                      ),
+                    // ── iOS Segmented Control ──
+                    _SegmentedControl(
+                      labels: const ['My Room', 'Find Rooms', 'My Team'],
+                      selected: _selectedTab,
+                      isDark: isDark,
+                      onTap: _switchTab,
                     ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
-              // Tab Content
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
@@ -263,7 +239,6 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
               ),
             ],
           ),
-          // Create Room Dialog
           if (_showCreateRoom)
             _CreateRoomDialog(
               isDark: isDark,
@@ -278,25 +253,9 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
                       'KH-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}-AC';
                 });
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Row(
-                      children: [
-                        const Icon(
-                          Icons.check_circle_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Room "${_roomNameCtrl.text.trim().isNotEmpty ? _roomNameCtrl.text.trim() : 'My Room'}" created!',
-                        ),
-                      ],
-                    ),
-                    backgroundColor: Colors.green,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                  _toast(
+                    'Room "${_roomNameCtrl.text.trim().isNotEmpty ? _roomNameCtrl.text.trim() : 'My Room'}" created!',
+                    Colors.green,
                   ),
                 );
               },
@@ -306,14 +265,31 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
     );
   }
 
-  // ─── My Room Tab ──────────────────────────────────────────────────────────
+  SnackBar _toast(String msg, Color color) => SnackBar(
+    content: Row(
+      children: [
+        const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+        const SizedBox(width: 8),
+        Expanded(child: Text(msg)),
+      ],
+    ),
+    backgroundColor: color,
+    behavior: SnackBarBehavior.floating,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    duration: const Duration(seconds: 2),
+  );
+
+  // ─── My Room Tab ─────────────────────────────────────────────────────────
   Widget _buildMyRoomTab(bool isDark) {
+    final filled = _myTeamMembers.length;
+    final total = 4;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Room Info Card
+          // ── Room Status Card ──
           _GlassCard(
             isDark: isDark,
             child: Column(
@@ -346,7 +322,7 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
                           Text(
                             'Project Phoenix Room',
                             style: TextStyle(
-                              fontSize: 17,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: isDark
                                   ? Colors.white
@@ -354,7 +330,7 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
                             ),
                           ),
                           Text(
-                            'Kitahack 2026 • 3/4 members',
+                            'Kitahack 2026',
                             style: TextStyle(
                               fontSize: 12,
                               color: isDark
@@ -371,192 +347,115 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
                   ],
                 ),
                 const SizedBox(height: 16),
-                // Invite Code
+                // ── Member Progress Bar ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Members',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.6)
+                            : AppTheme.primaryColor.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    Text(
+                      '$filled / $total',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark
+                            ? Colors.white
+                            : AppTheme.textPrimaryColor,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: filled / total,
+                    minHeight: 8,
+                    backgroundColor: isDark
+                        ? Colors.white.withValues(alpha: 0.1)
+                        : AppTheme.backgroundColor,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppTheme.primaryColor,
+                    ),
+                  ),
+                ),
+                // ── Member Avatars row ──
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    ..._myTeamMembers.map(
+                      (m) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _AvatarDot(
+                          name: m.name,
+                          isLead: m.isLead,
+                          online: m.online,
+                          isDark: isDark,
+                        ),
+                      ),
+                    ),
+                    // empty slot
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.2)
+                              : AppTheme.primaryColor.withValues(alpha: 0.3),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.add,
+                        size: 18,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.3)
+                            : AppTheme.primaryColor.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Waiting for 1 more…',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.4)
+                            : AppTheme.primaryColor.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // ── Invite Code ──
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: isDark
-                        ? Colors.white.withValues(alpha: 0.05)
-                        : AppTheme.backgroundColor.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(10),
+                        ? Colors.white.withValues(alpha: 0.06)
+                        : AppTheme.backgroundColor.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         Icons.vpn_key_rounded,
-                        size: 14,
+                        size: 16,
                         color: isDark
                             ? Colors.white.withValues(alpha: 0.5)
                             : AppTheme.primaryColor,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Invite Code: ',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.5)
-                              : AppTheme.primaryColor.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      Text(
-                        _inviteCode,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'monospace',
-                          color: isDark ? Colors.white : AppTheme.primaryColor,
-                        ),
-                      ),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: () {
-                          Clipboard.setData(ClipboardData(text: _inviteCode));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Code copied!'),
-                              duration: const Duration(seconds: 1),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(
-                                Icons.copy_rounded,
-                                size: 12,
-                                color: AppTheme.primaryColor,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                'Copy',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppTheme.primaryColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Members
-                _SectionLabel(
-                  'Room Members',
-                  Icons.group_rounded,
-                  AppTheme.secondaryColor,
-                ),
-                const SizedBox(height: 10),
-                ..._myTeamMembers.map(
-                  (m) => _MemberTile(member: m, isDark: isDark),
-                ),
-                const SizedBox(height: 10),
-                // Invite slot
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.1)
-                          : AppTheme.backgroundColor,
-                      width: 1.5,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.08)
-                              : AppTheme.backgroundColor.withValues(alpha: 0.4),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isDark
-                                ? Colors.white.withValues(alpha: 0.15)
-                                : AppTheme.primaryColor.withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.add_rounded,
-                          size: 18,
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.4)
-                              : AppTheme.primaryColor.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Waiting for 1 more member…',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.4)
-                              : AppTheme.primaryColor.withValues(alpha: 0.5),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // AI Pool Toggle
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    gradient: _isAIPoolActive
-                        ? LinearGradient(
-                            colors: [
-                              AppTheme.accentPurple.withValues(alpha: 0.1),
-                              AppTheme.primaryColor.withValues(alpha: 0.1),
-                            ],
-                          )
-                        : null,
-                    color: _isAIPoolActive
-                        ? null
-                        : (isDark
-                              ? Colors.white.withValues(alpha: 0.04)
-                              : AppTheme.backgroundColor.withValues(
-                                  alpha: 0.2,
-                                )),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: _isAIPoolActive
-                          ? AppTheme.accentPurple.withValues(alpha: 0.3)
-                          : (isDark
-                                ? Colors.white.withValues(alpha: 0.08)
-                                : AppTheme.backgroundColor),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.auto_awesome_rounded,
-                        size: 18,
-                        color: _isAIPoolActive
-                            ? AppTheme.accentPurple
-                            : (isDark
-                                  ? Colors.white.withValues(alpha: 0.4)
-                                  : AppTheme.primaryColor.withValues(
-                                      alpha: 0.5,
-                                    )),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -564,57 +463,124 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'AI Matching Pool',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: _isAIPoolActive
-                                    ? AppTheme.accentPurple
-                                    : (isDark
-                                          ? Colors.white
-                                          : AppTheme.textPrimaryColor),
-                              ),
-                            ),
-                            Text(
-                              _isAIPoolActive
-                                  ? 'Scanning for compatible teammates…'
-                                  : 'Join the AI pool to get auto-matched',
+                              'Invite Code',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: isDark
                                     ? Colors.white.withValues(alpha: 0.4)
                                     : AppTheme.primaryColor.withValues(
-                                        alpha: 0.5,
+                                        alpha: 0.6,
                                       ),
+                              ),
+                            ),
+                            Text(
+                              _inviteCode,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.5,
+                                color: isDark
+                                    ? Colors.white
+                                    : AppTheme.primaryColor,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      Switch(
-                        value: _isAIPoolActive,
-                        onChanged: (v) => setState(() => _isAIPoolActive = v),
-                        activeColor: AppTheme.accentPurple,
+                      // Copy button with ✓ feedback
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        child: _codeCopied
+                            ? Container(
+                                key: const ValueKey('check'),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(
+                                      Icons.check_rounded,
+                                      size: 14,
+                                      color: Colors.green,
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Copied!',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.green,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : GestureDetector(
+                                key: const ValueKey('copy'),
+                                onTap: _copyCode,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryColor.withValues(
+                                      alpha: 0.12,
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Icon(
+                                        Icons.copy_rounded,
+                                        size: 14,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Copy',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppTheme.primaryColor,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(height: 14),
+                // ── AI Matching Pool Toggle ──
+                _AIPoolToggle(
+                  isDark: isDark,
+                  active: _isAIPoolActive,
+                  onChanged: (v) => setState(() => _isAIPoolActive = v),
+                ),
               ],
             ),
           ).animate().fadeIn(delay: 150.ms, duration: 500.ms),
-          const SizedBox(height: 16),
-          // Create another room
+          const SizedBox(height: 14),
+          // ── Create New Room ──
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: () => setState(() => _showCreateRoom = true),
-              icon: const Icon(Icons.add_circle_outlined, size: 16),
-              label: const Text('Create New Room'),
+              icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+              label: const Text('Start a New Room'),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(
                   color: isDark
-                      ? Colors.white.withValues(alpha: 0.2)
-                      : AppTheme.primaryColor.withValues(alpha: 0.4),
+                      ? Colors.white.withValues(alpha: 0.18)
+                      : AppTheme.primaryColor.withValues(alpha: 0.35),
                 ),
                 foregroundColor: isDark
                     ? Colors.white70
@@ -633,364 +599,913 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
 
   // ─── Find Rooms Tab ───────────────────────────────────────────────────────
   Widget _buildFindRoomsTab(bool isDark) {
+    final filtered = _suggestedRooms.where((r) {
+      if (_roomSearch.isEmpty) return true;
+      final q = _roomSearch.toLowerCase();
+      return r.name.toLowerCase().contains(q) ||
+          r.event.toLowerCase().contains(q) ||
+          r.skills.any((s) => s.toLowerCase().contains(q));
+    }).toList();
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionLabel(
-            'AI-Suggested Rooms',
-            Icons.auto_awesome_rounded,
-            AppTheme.accentPurple,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Based on your skills and interests',
-            style: TextStyle(
-              fontSize: 12,
+          // ── Search Bar ──
+          Container(
+            decoration: BoxDecoration(
               color: isDark
-                  ? Colors.white.withValues(alpha: 0.4)
-                  : AppTheme.primaryColor.withValues(alpha: 0.5),
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : AppTheme.backgroundColor,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 14),
-          ..._suggestedRooms.asMap().entries.map(
-            (e) => _SuggestedRoomCard(
-              room: e.value,
-              isDark: isDark,
-              delay: e.key * 80,
-              onJoin: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Join request sent to ${e.value.name}!'),
-                    backgroundColor: Colors.green,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+            child: TextField(
+              onChanged: (v) => setState(() => _roomSearch = v),
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Search hackathons or skills…',
+                hintStyle: TextStyle(
+                  fontSize: 14,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.3)
+                      : AppTheme.primaryColor.withValues(alpha: 0.4),
+                ),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  size: 20,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.4)
+                      : AppTheme.primaryColor.withValues(alpha: 0.5),
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ).animate().fadeIn(duration: 400.ms),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentPurple.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 14,
+                  color: AppTheme.accentPurple,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'AI-Suggested Rooms',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'Based on your profile',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.4)
+                      : AppTheme.primaryColor.withValues(alpha: 0.5),
+                ),
+              ),
+            ],
+          ).animate().fadeIn(delay: 80.ms, duration: 400.ms),
+          const SizedBox(height: 12),
+          if (filtered.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.search_off_rounded,
+                      size: 40,
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.2)
+                          : AppTheme.primaryColor.withValues(alpha: 0.2),
                     ),
-                  ),
-                );
-              },
+                    const SizedBox(height: 8),
+                    Text(
+                      'No rooms match "$_roomSearch"',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.4)
+                            : AppTheme.primaryColor.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ...filtered.asMap().entries.map(
+              (e) => _SuggestedRoomCard(
+                room: e.value,
+                isDark: isDark,
+                delay: e.key * 80,
+                joined: _joinedRooms.contains(e.key),
+                onJoin: () {
+                  setState(() => _joinedRooms.add(e.key));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    _toast(
+                      'Join request sent to ${e.value.name}!',
+                      Colors.green,
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  // ─── My Team Tab ──────────────────────────────────────────────────────────
+  // ─── My Team Tab ─────────────────────────────────────────────────────────
   Widget _buildMyTeamTab(bool isDark) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Team Status Banner
-          _GlassCard(
+          // ── Step Progress ──
+          _StepProgress(
+            current: _teamStep,
             isDark: isDark,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            AppTheme.primaryColor,
-                            AppTheme.secondaryColor,
+          ).animate().fadeIn(duration: 400.ms),
+          const SizedBox(height: 16),
+
+          // ── Step 1: Finalize Team ──
+          if (_teamStep == 1) ...[
+            _GlassCard(
+              isDark: isDark,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              AppTheme.primaryColor,
+                              AppTheme.secondaryColor,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.groups_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Project Phoenix',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: isDark
+                                    ? Colors.white
+                                    : AppTheme.textPrimaryColor,
+                              ),
+                            ),
+                            Text(
+                              'Room active · Waiting for members',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.5)
+                                    : AppTheme.primaryColor.withValues(
+                                        alpha: 0.6,
+                                      ),
+                              ),
+                            ),
                           ],
                         ),
-                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
-                        Icons.groups_rounded,
-                        color: Colors.white,
-                        size: 20,
+                      _StatusBadge(label: 'Building', color: Colors.amber),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'When everyone is ready, finalize to lock the team. No one can join or leave after this.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.55)
+                          : AppTheme.primaryColor.withValues(alpha: 0.65),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => setState(() {
+                        _isTeamFormed = true;
+                        _teamStep = 2;
+                      }),
+                      icon: const Icon(Icons.lock_rounded, size: 16),
+                      label: const Text('Finalize Team'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Project Phoenix',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: isDark
-                                  ? Colors.white
-                                  : AppTheme.textPrimaryColor,
+                  ),
+                ],
+              ),
+            ).animate().fadeIn(delay: 100.ms, duration: 500.ms),
+            const SizedBox(height: 16),
+            _SectionLabel(
+              'Team Members',
+              Icons.people_rounded,
+              AppTheme.secondaryColor,
+            ),
+            const SizedBox(height: 10),
+            ..._myTeamMembers.map(
+              (m) => _MemberTile(member: m, isDark: isDark),
+            ),
+          ],
+
+          // ── Step 2: Group Chat ──
+          if (_teamStep == 2) ...[
+            _GlassCard(
+              isDark: isDark,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.check_rounded,
+                          color: Colors.green,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Team Finalized! 🎉',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: isDark
+                                    ? Colors.white
+                                    : AppTheme.textPrimaryColor,
+                              ),
+                            ),
+                            Text(
+                              'Now set up your group chat',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      _StatusBadge(label: 'Formed', color: Colors.green),
+                    ],
+                  ),
+                ],
+              ),
+            ).animate().fadeIn(delay: 60.ms, duration: 400.ms),
+            const SizedBox(height: 16),
+            _SectionLabel(
+              'Team Members',
+              Icons.people_rounded,
+              AppTheme.secondaryColor,
+            ),
+            const SizedBox(height: 10),
+            ..._myTeamMembers.map(
+              (m) => _MemberTile(member: m, isDark: isDark),
+            ),
+            const SizedBox(height: 16),
+            // Group Chat card
+            _GlassCard(
+              isDark: isDark,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SectionLabel(
+                    'Group Chat',
+                    Icons.chat_bubble_rounded,
+                    AppTheme.accentPurple,
+                  ),
+                  const SizedBox(height: 12),
+                  if (!_isCreatingGroup && _groupLinkError.isEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'One member creates the group chat and shares the link here.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.55)
+                                : AppTheme.primaryColor.withValues(alpha: 0.65),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _startCountdown,
+                            icon: const Icon(
+                              Icons.chat_bubble_rounded,
+                              size: 16,
+                            ),
+                            label: const Text('I\'ll Create the Group Chat'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.accentPurple,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
+                        ),
+                      ],
+                    )
+                  else if (_isCreatingGroup) ...[
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentPurple.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.accentPurple.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.timer_rounded,
+                            size: 18,
+                            color: AppTheme.accentPurple,
+                          ),
+                          const SizedBox(width: 8),
                           Text(
-                            _isTeamFormed
-                                ? 'Team formed • Ready to go!'
-                                : 'Room active • Waiting for members',
+                            '${(_countdownSeconds ~/ 60).toString().padLeft(2, '0')}:${(_countdownSeconds % 60).toString().padLeft(2, '0')}',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.accentPurple,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            'Create then paste link below',
                             style: TextStyle(
                               fontSize: 12,
-                              color: _isTeamFormed
-                                  ? Colors.green
-                                  : (isDark
-                                        ? Colors.white.withValues(alpha: 0.5)
-                                        : AppTheme.primaryColor.withValues(
-                                            alpha: 0.6,
-                                          )),
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.5)
+                                  : AppTheme.primaryColor.withValues(
+                                      alpha: 0.6,
+                                    ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    _StatusBadge(
-                      label: _isTeamFormed ? 'Formed' : 'Building',
-                      color: _isTeamFormed ? Colors.green : Colors.amber,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Action button
-                if (!_isTeamFormed)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => setState(() => _isTeamFormed = true),
-                      icon: const Icon(Icons.lock_rounded, size: 16),
-                      label: const Text('Lock Team (Convert Room to Team)'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ).animate().fadeIn(delay: 100.ms, duration: 500.ms),
-          const SizedBox(height: 16),
-          // Members
-          _SectionLabel(
-            'Team Members',
-            Icons.people_rounded,
-            AppTheme.secondaryColor,
-          ),
-          const SizedBox(height: 10),
-          ..._myTeamMembers.map((m) => _MemberTile(member: m, isDark: isDark)),
-          const SizedBox(height: 16),
-          // Group Chat Section
-          _GlassCard(
-            isDark: isDark,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _SectionLabel(
-                  'Group Chat',
-                  Icons.chat_bubble_rounded,
-                  AppTheme.accentPurple,
-                ),
-                const SizedBox(height: 12),
-                if (!_isTeamFormed)
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.amber.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.info_rounded,
-                          size: 16,
-                          color: Colors.amber,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Lock the team first to enable group chat creation.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark
-                                  ? Colors.amber.shade100
-                                  : Colors.amber.shade800,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else if (!_isCreatingGroup && _groupLinkError.isEmpty)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _startCountdown,
-                      icon: const Icon(Icons.chat_bubble_rounded, size: 16),
-                      label: const Text('I\'ll Create the Group Chat'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.accentPurple,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  )
-                else if (_isCreatingGroup) ...[
-                  // Timer
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentPurple.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.accentPurple.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.timer_rounded,
-                          size: 18,
-                          color: AppTheme.accentPurple,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${(_countdownSeconds ~/ 60).toString().padLeft(2, '0')}:${(_countdownSeconds % 60).toString().padLeft(2, '0')}',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'monospace',
-                            color: AppTheme.accentPurple,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          'Paste the link below',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark
-                                ? Colors.white.withValues(alpha: 0.5)
-                                : AppTheme.primaryColor.withValues(alpha: 0.6),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _linkController,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isDark ? Colors.white : AppTheme.textPrimaryColor,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Paste WhatsApp / Telegram / Discord link',
-                      hintStyle: TextStyle(
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _linkController,
+                      style: TextStyle(
                         fontSize: 13,
                         color: isDark
-                            ? Colors.white.withValues(alpha: 0.3)
-                            : AppTheme.primaryColor.withValues(alpha: 0.4),
+                            ? Colors.white
+                            : AppTheme.textPrimaryColor,
                       ),
-                      filled: true,
-                      fillColor: isDark
-                          ? Colors.white.withValues(alpha: 0.06)
-                          : AppTheme.backgroundColor.withValues(alpha: 0.4),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
+                      decoration: InputDecoration(
+                        hintText: 'Paste WhatsApp / Telegram / Discord link',
+                        hintStyle: TextStyle(
+                          fontSize: 13,
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.3)
+                              : AppTheme.primaryColor.withValues(alpha: 0.4),
+                        ),
+                        filled: true,
+                        fillColor: isDark
+                            ? Colors.white.withValues(alpha: 0.06)
+                            : AppTheme.backgroundColor.withValues(alpha: 0.4),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        errorText: _groupLinkError.isNotEmpty
+                            ? _groupLinkError
+                            : null,
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      errorText: _groupLinkError.isNotEmpty
-                          ? _groupLinkError
-                          : null,
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _validateLink,
-                      icon: const Icon(Icons.check_circle_rounded, size: 16),
-                      label: const Text('Submit Link'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _validateLink,
+                        icon: const Icon(Icons.check_circle_rounded, size: 16),
+                        label: const Text('Submit Link'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ] else if (_groupLinkError.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.red.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Column(
+                  ] else if (_groupLinkError.isNotEmpty)
+                    Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.error_rounded,
-                              size: 16,
-                              color: Colors.red,
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.red.withValues(alpha: 0.3),
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _groupLinkError,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.red,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.error_rounded,
+                                size: 16,
+                                color: Colors.red,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _groupLinkError,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.red,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() => _groupLinkError = '');
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.accentPurple,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
+                        const SizedBox(height: 10),
+                        OutlinedButton(
+                          onPressed: () => setState(() {
+                            _groupLinkError = '';
+                          }),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(
+                              color: AppTheme.accentPurple,
+                            ),
+                            foregroundColor: AppTheme.accentPurple,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          child: const Text(
-                            'Try Again',
-                            style: TextStyle(fontSize: 12),
-                          ),
+                          child: const Text('Try Again'),
                         ),
                       ],
                     ),
+                ],
+              ),
+            ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
+          ],
+
+          // ── Step 3: Done ──
+          if (_teamStep == 3) ...[
+            _GlassCard(
+                  isDark: isDark,
+                  child: Column(
+                    children: [
+                      const Icon(
+                        Icons.rocket_launch_rounded,
+                        size: 48,
+                        color: AppTheme.primaryColor,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Your team is ready! 🚀',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: isDark
+                              ? Colors.white
+                              : AppTheme.textPrimaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Group chat is live. Good luck at the hackathon!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.55)
+                              : AppTheme.primaryColor.withValues(alpha: 0.65),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _StatusBadge(
+                            label: 'Team Formed',
+                            color: Colors.green,
+                          ),
+                          const SizedBox(width: 8),
+                          _StatusBadge(
+                            label: 'Chat Ready',
+                            color: AppTheme.accentPurple,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
+                )
+                .animate()
+                .fadeIn(duration: 600.ms)
+                .scale(
+                  begin: const Offset(0.95, 0.95),
+                  end: const Offset(1, 1),
+                ),
+            const SizedBox(height: 16),
+            _SectionLabel(
+              'Team Members',
+              Icons.people_rounded,
+              AppTheme.secondaryColor,
+            ),
+            const SizedBox(height: 10),
+            ..._myTeamMembers.map(
+              (m) => _MemberTile(member: m, isDark: isDark),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─── iOS Segmented Control ────────────────────────────────────────────────────
+class _SegmentedControl extends StatelessWidget {
+  final List<String> labels;
+  final int selected;
+  final bool isDark;
+  final ValueChanged<int> onTap;
+  const _SegmentedControl({
+    required this.labels,
+    required this.selected,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.07)
+            : AppTheme.backgroundColor.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: List.generate(labels.length, (i) {
+          final active = selected == i;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onTap(i),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeInOut,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: active
+                      ? (isDark
+                            ? Colors.white.withValues(alpha: 0.12)
+                            : Colors.white)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(11),
+                  boxShadow: active
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : [],
+                  gradient: active
+                      ? const LinearGradient(
+                          colors: [
+                            AppTheme.primaryColor,
+                            AppTheme.primaryDarkColor,
+                          ],
+                        )
+                      : null,
+                ),
+                child: Text(
+                  labels[i],
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                    color: active
+                        ? Colors.white
+                        : (isDark
+                              ? Colors.white.withValues(alpha: 0.5)
+                              : AppTheme.primaryColor.withValues(alpha: 0.6)),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+// ─── Step Progress ────────────────────────────────────────────────────────────
+class _StepProgress extends StatelessWidget {
+  final int current;
+  final bool isDark;
+  const _StepProgress({required this.current, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = ['Finalize Team', 'Group Chat', 'Ready!'];
+    return Row(
+      children: List.generate(steps.length * 2 - 1, (i) {
+        if (i.isOdd) {
+          final stepIndex = (i ~/ 2) + 1;
+          final done = current > stepIndex;
+          return Expanded(
+            child: Container(
+              height: 2,
+              color: done
+                  ? AppTheme.primaryColor
+                  : (isDark
+                        ? Colors.white.withValues(alpha: 0.12)
+                        : AppTheme.backgroundColor),
+            ),
+          );
+        }
+        final stepIndex = (i ~/ 2) + 1;
+        final done = current > stepIndex;
+        final active = current == stepIndex;
+        return Column(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: done
+                    ? Colors.green
+                    : (active
+                          ? AppTheme.primaryColor
+                          : (isDark
+                                ? Colors.white.withValues(alpha: 0.1)
+                                : AppTheme.backgroundColor)),
+                border: Border.all(
+                  color: done
+                      ? Colors.green
+                      : (active ? AppTheme.primaryColor : Colors.transparent),
+                  width: 2,
+                ),
+              ),
+              child: Center(
+                child: done
+                    ? const Icon(
+                        Icons.check_rounded,
+                        size: 16,
+                        color: Colors.white,
+                      )
+                    : Text(
+                        '$stepIndex',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: active
+                              ? Colors.white
+                              : (isDark
+                                    ? Colors.white.withValues(alpha: 0.4)
+                                    : AppTheme.primaryColor.withValues(
+                                        alpha: 0.4,
+                                      )),
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              steps[stepIndex - 1],
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: active ? FontWeight.bold : FontWeight.normal,
+                color: active
+                    ? AppTheme.primaryColor
+                    : (isDark
+                          ? Colors.white.withValues(alpha: 0.4)
+                          : AppTheme.primaryColor.withValues(alpha: 0.5)),
+              ),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+}
+
+// ─── Avatar Dot ───────────────────────────────────────────────────────────────
+class _AvatarDot extends StatelessWidget {
+  final String name;
+  final bool isLead;
+  final bool online;
+  final bool isDark;
+  const _AvatarDot({
+    required this.name,
+    required this.isLead,
+    required this.online,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        CircleAvatar(
+          radius: 18,
+          backgroundColor: isLead
+              ? AppTheme.primaryColor
+              : AppTheme.secondaryColor,
+          child: Text(
+            name[0],
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        Positioned(
+          right: 0,
+          bottom: 0,
+          child: Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: online ? Colors.greenAccent : Colors.grey,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isDark ? Colors.black : Colors.white,
+                width: 1.5,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── AI Pool Toggle ───────────────────────────────────────────────────────────
+class _AIPoolToggle extends StatelessWidget {
+  final bool isDark;
+  final bool active;
+  final ValueChanged<bool> onChanged;
+  const _AIPoolToggle({
+    required this.isDark,
+    required this.active,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: active
+            ? LinearGradient(
+                colors: [
+                  AppTheme.accentPurple.withValues(alpha: 0.12),
+                  AppTheme.primaryColor.withValues(alpha: 0.08),
+                ],
+              )
+            : null,
+        color: active
+            ? null
+            : (isDark
+                  ? Colors.white.withValues(alpha: 0.04)
+                  : AppTheme.backgroundColor.withValues(alpha: 0.2)),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: active
+              ? AppTheme.accentPurple.withValues(alpha: 0.3)
+              : (isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : AppTheme.backgroundColor),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.auto_awesome_rounded,
+            size: 18,
+            color: active
+                ? AppTheme.accentPurple
+                : (isDark
+                      ? Colors.white.withValues(alpha: 0.4)
+                      : AppTheme.primaryColor.withValues(alpha: 0.5)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'AI Matching Pool',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: active
+                        ? AppTheme.accentPurple
+                        : (isDark ? Colors.white : AppTheme.textPrimaryColor),
+                  ),
+                ),
+                Text(
+                  active
+                      ? 'Scanning for compatible teammates…'
+                      : 'Let AI find you the perfect teammate',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.4)
+                        : AppTheme.primaryColor.withValues(alpha: 0.5),
+                  ),
+                ),
               ],
             ),
-          ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
+          ),
+          Switch(
+            value: active,
+            onChanged: onChanged,
+            activeColor: AppTheme.accentPurple,
+          ),
         ],
       ),
     );
@@ -998,7 +1513,6 @@ class _StudentTeamScreenState extends State<StudentTeamScreen>
 }
 
 // ─── Reusable Components ──────────────────────────────────────────────────────
-
 class _GlassCard extends StatelessWidget {
   final bool isDark;
   final Widget child;
@@ -1038,6 +1552,7 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       children: [
         Container(
@@ -1054,9 +1569,7 @@ class _SectionLabel extends StatelessWidget {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white
-                : AppTheme.textPrimaryColor,
+            color: isDark ? Colors.white : AppTheme.textPrimaryColor,
           ),
         ),
       ],
@@ -1108,39 +1621,11 @@ class _MemberTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Stack(
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: member.isLead
-                      ? AppTheme.primaryColor
-                      : AppTheme.secondaryColor,
-                  child: Text(
-                    member.name[0],
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: member.online ? Colors.greenAccent : Colors.grey,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isDark ? Colors.black : Colors.white,
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            _AvatarDot(
+              name: member.name,
+              isLead: member.isLead,
+              online: member.online,
+              isDark: isDark,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -1194,12 +1679,13 @@ class _SuggestedRoomCard extends StatelessWidget {
   final _Room room;
   final bool isDark;
   final int delay;
+  final bool joined;
   final VoidCallback onJoin;
-
   const _SuggestedRoomCard({
     required this.room,
     required this.isDark,
     required this.delay,
+    required this.joined,
     required this.onJoin,
   });
 
@@ -1230,30 +1716,38 @@ class _SuggestedRoomCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Match %
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppTheme.primaryColor.withValues(
-                          alpha: room.matchPercent / 100,
+                // Match % circular indicator
+                SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        value: room.matchPercent / 100,
+                        backgroundColor: isDark
+                            ? Colors.white.withValues(alpha: 0.1)
+                            : AppTheme.backgroundColor,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          room.matchPercent >= 90
+                              ? Colors.green
+                              : (room.matchPercent >= 80
+                                    ? AppTheme.primaryColor
+                                    : AppTheme.secondaryColor),
                         ),
-                        AppTheme.secondaryColor,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${room.matchPercent}%',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        strokeWidth: 4,
                       ),
-                    ),
+                      Text(
+                        '${room.matchPercent}%',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: isDark
+                              ? Colors.white
+                              : AppTheme.textPrimaryColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1276,10 +1770,9 @@ class _SuggestedRoomCard extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '${room.members}/${room.maxMembers}',
+                            '${room.members}/${room.maxMembers} members',
                             style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
                               color: isDark
                                   ? Colors.white.withValues(alpha: 0.5)
                                   : AppTheme.primaryColor.withValues(
@@ -1289,7 +1782,7 @@ class _SuggestedRoomCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       Text(
                         room.event,
                         style: TextStyle(
@@ -1334,25 +1827,62 @@ class _SuggestedRoomCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: onJoin,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              textStyle: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            child: const Text('Join'),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            child: joined
+                                ? Container(
+                                    key: const ValueKey('sent'),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.check_rounded,
+                                          size: 14,
+                                          color: Colors.green,
+                                        ),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Sent',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.green,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : ElevatedButton(
+                                    key: const ValueKey('join'),
+                                    onPressed: onJoin,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.primaryColor,
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      textStyle: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    child: const Text('Join'),
+                                  ),
                           ),
                         ],
                       ),
@@ -1368,7 +1898,7 @@ class _SuggestedRoomCard extends StatelessWidget {
           delay: Duration(milliseconds: 150 + delay),
           duration: 400.ms,
         )
-        .slideX(begin: 0.05, end: 0);
+        .slideX(begin: 0.04, end: 0);
   }
 }
 
@@ -1380,7 +1910,6 @@ class _CreateRoomDialog extends StatelessWidget {
   final ValueChanged<int> onMaxChanged;
   final VoidCallback onClose;
   final VoidCallback onCreate;
-
   const _CreateRoomDialog({
     required this.isDark,
     required this.nameCtrl,
@@ -1412,14 +1941,14 @@ class _CreateRoomDialog extends StatelessWidget {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
                           colors: [
                             AppTheme.primaryColor,
                             AppTheme.primaryDarkColor,
                           ],
                         ),
-                        borderRadius: const BorderRadius.vertical(
+                        borderRadius: BorderRadius.vertical(
                           top: Radius.circular(24),
                         ),
                       ),
@@ -1433,7 +1962,7 @@ class _CreateRoomDialog extends StatelessWidget {
                           const SizedBox(width: 10),
                           const Expanded(
                             child: Text(
-                              'Create New Room',
+                              'Start a New Room',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -1525,7 +2054,10 @@ class _CreateRoomDialog extends StatelessWidget {
                                     padding: const EdgeInsets.only(right: 8),
                                     child: GestureDetector(
                                       onTap: () => onMaxChanged(n),
-                                      child: Container(
+                                      child: AnimatedContainer(
+                                        duration: const Duration(
+                                          milliseconds: 200,
+                                        ),
                                         width: 44,
                                         height: 44,
                                         decoration: BoxDecoration(
