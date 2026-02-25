@@ -2245,9 +2245,9 @@ class _ProgressHeader extends StatelessWidget {
       ('Finalize', 'Lock & chat'),
     ];
     return Container(
-      color: isDark ? const Color(0xFF111111) : Colors.white,
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
       decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF111111) : Colors.white,
         border: Border(
           bottom: BorderSide(
             color: isDark
