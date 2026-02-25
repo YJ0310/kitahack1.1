@@ -1,0 +1,16 @@
+{
+  "name": "kitahack1_6",
+  "version": "1.0.0",
+  "description": "A new Flutter project.",
+  "scripts": {
+    "build": "if [ ! -d \"flutter\" ]; then git clone https://github.com/flutter/flutter.git -b stable; fi && export PATH=\"$PATH:`pwd`/flutter/bin\" && flutter/bin/flutter build web",
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1",
+    "serve": "^14.2.4"
+  }
+}
