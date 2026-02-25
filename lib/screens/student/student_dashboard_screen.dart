@@ -247,7 +247,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               icon: Icons.connect_without_contact_rounded,
               iconColor: AppTheme.accentPink,
               actionText: 'View All',
-              onAction: () {},
+              onAction: () => _showSuggestedDialog(context),
             ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
             const SizedBox(height: 12),
             _SuggestedConnectionsGrid(
@@ -257,6 +257,112 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showSuggestedDialog(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1e1e1e) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(
+              Icons.connect_without_contact_rounded,
+              color: AppTheme.accentPink,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Suggested Connections',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: _suggestedUsers
+                .map(
+                  (u) => ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: AppTheme.primaryColor.withValues(
+                        alpha: 0.15,
+                      ),
+                      child: Text(
+                        (u['name'] as String)[0],
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      u['name'] as String,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? Colors.white
+                            : AppTheme.textPrimaryColor,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${u['faculty']} • ${u['matchScore']}% match',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? Colors.white54
+                            : AppTheme.primaryColor.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    trailing: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Connection request sent to ${u['name']}!',
+                            ),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 0,
+                        textStyle: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: const Text('Connect'),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }
@@ -723,7 +829,51 @@ class _AIInsightsList extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        final actionLabel = insight['actionText'] as String;
+                        final title = insight['title'] as String;
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            title: Text(
+                              title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            content: Text(
+                              'Are you sure you want to "$actionLabel" for "$title"?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('Cancel'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        '$actionLabel action completed!',
+                                      ),
+                                    ),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: insight['color'] as Color,
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: Text(actionLabel),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: insight['color'] as Color,
                         foregroundColor: Colors.white,

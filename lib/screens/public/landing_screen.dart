@@ -166,7 +166,7 @@ class _LandingScreenState extends State<LandingScreen> {
                               ? AppTheme.backgroundColor
                               : AppTheme.primaryDarkColor,
                         ),
-                        onPressed: () {},
+                        onPressed: () => _showMobileMenu(context, isDark),
                       ),
                     ],
                   ),
@@ -175,6 +175,107 @@ class _LandingScreenState extends State<LandingScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showMobileMenu(BuildContext context, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF1a1a1a) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.black12,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              _MobileMenuLink(
+                icon: Icons.star_rounded,
+                label: 'Features',
+                isDark: isDark,
+                onTap: () => Navigator.pop(ctx),
+              ),
+              _MobileMenuLink(
+                icon: Icons.rocket_launch_rounded,
+                label: 'How It Works',
+                isDark: isDark,
+                onTap: () => Navigator.pop(ctx),
+              ),
+              _MobileMenuLink(
+                icon: Icons.info_rounded,
+                label: 'About',
+                isDark: isDark,
+                onTap: () => Navigator.pop(ctx),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    context.go('/login');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: const Text(
+                    'Join Now',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MobileMenuLink extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isDark;
+  final VoidCallback onTap;
+  const _MobileMenuLink({
+    required this.icon,
+    required this.label,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: isDark ? AppTheme.backgroundColor : AppTheme.primaryColor,
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+        ),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onTap: onTap,
     );
   }
 }
@@ -233,7 +334,7 @@ class _HeroSection extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 800),
+      constraints: BoxConstraints(minHeight: width <= 600 ? 500 : 800),
       // Mimicking the complex CSS background gradients
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
@@ -295,9 +396,9 @@ class _HeroSection extends StatelessWidget {
           SafeArea(
             child: Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 80,
+                padding: EdgeInsets.symmetric(
+                  horizontal: width <= 600 ? 16 : 24,
+                  vertical: width <= 600 ? 40 : 80,
                 ),
                 child: Row(
                   children: [
@@ -365,7 +466,9 @@ class _HeroSection extends StatelessWidget {
                                       .textTheme
                                       .displayLarge
                                       ?.copyWith(
-                                        fontSize: width > 800 ? 72 : 48,
+                                        fontSize: width > 800
+                                            ? 72
+                                            : (width <= 600 ? 28 : 48),
                                         height: 1.1,
                                       ),
                                   children: [
@@ -397,7 +500,9 @@ class _HeroSection extends StatelessWidget {
                                   textAlign: TextAlign.center,
                                   style: Theme.of(context).textTheme.bodyLarge
                                       ?.copyWith(
-                                        fontSize: width > 800 ? 20 : 16,
+                                        fontSize: width > 800
+                                            ? 20
+                                            : (width <= 600 ? 14 : 16),
                                         color: isDark
                                             ? AppTheme.backgroundColor
                                                   .withValues(alpha: 0.8)
@@ -412,33 +517,34 @@ class _HeroSection extends StatelessWidget {
                               .slideY(begin: 0.2, end: 0),
                           const SizedBox(height: 40),
                           // Buttons
-                          Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                          Wrap(
+                                spacing: 16,
+                                runSpacing: 12,
+                                alignment: WrapAlignment.center,
                                 children: [
                                   ElevatedButton.icon(
                                     onPressed: () => context.go('/login'),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppTheme.primaryColor,
                                       foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 32,
-                                        vertical: 20,
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: width <= 600 ? 24 : 32,
+                                        vertical: width <= 600 ? 14 : 20,
                                       ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(30),
                                       ),
                                       elevation: 5,
                                     ),
-                                    label: const Text(
+                                    label: Text(
                                       "Start Connecting",
                                       style: TextStyle(
-                                        fontSize: 18,
+                                        fontSize: width <= 600 ? 14 : 18,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                     icon: const Icon(Icons.arrow_forward),
                                   ),
-                                  const SizedBox(width: 16),
                                   OutlinedButton(
                                     onPressed: () {},
                                     style: OutlinedButton.styleFrom(
@@ -451,18 +557,18 @@ class _HeroSection extends StatelessWidget {
                                             : AppTheme.primaryColor,
                                         width: 2,
                                       ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 32,
-                                        vertical: 20,
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: width <= 600 ? 24 : 32,
+                                        vertical: width <= 600 ? 14 : 20,
                                       ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(30),
                                       ),
                                     ),
-                                    child: const Text(
+                                    child: Text(
                                       "Explore Events",
                                       style: TextStyle(
-                                        fontSize: 18,
+                                        fontSize: width <= 600 ? 14 : 18,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -474,13 +580,13 @@ class _HeroSection extends StatelessWidget {
                               .slideY(begin: 0.2, end: 0),
                           const SizedBox(height: 64),
                           // Stats
-                          Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
+                          Wrap(
+                                spacing: width <= 600 ? 24 : 48,
+                                runSpacing: 16,
+                                alignment: WrapAlignment.center,
+                                children: const [
                                   _StatItem("5min", "Avg. Match Time"),
-                                  const SizedBox(width: 48),
                                   _StatItem("1000+", "Teams Formed"),
-                                  const SizedBox(width: 48),
                                   _StatItem("50+", "Events Monthly"),
                                 ],
                               )
@@ -547,12 +653,13 @@ class _StatItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final width = MediaQuery.of(context).size.width;
     return Column(
       children: [
         Text(
           value,
           style: TextStyle(
-            fontSize: 40,
+            fontSize: width <= 600 ? 28 : 40,
             fontWeight: FontWeight.bold,
             color: isDark
                 ? AppTheme.backgroundColor
@@ -606,7 +713,10 @@ class _FeaturesSection extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 96, horizontal: 24),
+      padding: EdgeInsets.symmetric(
+        vertical: MediaQuery.of(context).size.width <= 600 ? 48 : 96,
+        horizontal: MediaQuery.of(context).size.width <= 600 ? 16 : 24,
+      ),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF141414) : Colors.white,
       ),
@@ -617,7 +727,11 @@ class _FeaturesSection extends StatelessWidget {
             children: [
               Text(
                 "Why Teh Ais?",
-                style: Theme.of(context).textTheme.displayMedium,
+                style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                  fontSize: MediaQuery.of(context).size.width <= 600
+                      ? 28
+                      : null,
+                ),
               ),
               const SizedBox(height: 16),
               Text(
@@ -764,7 +878,10 @@ class _HowItWorksSection extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 96, horizontal: 24),
+      padding: EdgeInsets.symmetric(
+        vertical: MediaQuery.of(context).size.width <= 600 ? 48 : 96,
+        horizontal: MediaQuery.of(context).size.width <= 600 ? 16 : 24,
+      ),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1a1a1a) : AppTheme.textPrimaryColor,
       ),
@@ -773,10 +890,10 @@ class _HowItWorksSection extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 1200),
           child: Column(
             children: [
-              const Text(
+              Text(
                 "How It Works",
                 style: TextStyle(
-                  fontSize: 48,
+                  fontSize: MediaQuery.of(context).size.width <= 600 ? 28 : 48,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
@@ -784,8 +901,9 @@ class _HowItWorksSection extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 "Four simple steps to go from solo to squad — faster than your ice melts.",
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: MediaQuery.of(context).size.width <= 600 ? 14 : 20,
                   color: AppTheme.backgroundColor.withValues(alpha: 0.7),
                 ),
               ),
@@ -866,7 +984,10 @@ class _CTASection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 96, horizontal: 24),
+      padding: EdgeInsets.symmetric(
+        vertical: MediaQuery.of(context).size.width <= 600 ? 48 : 96,
+        horizontal: MediaQuery.of(context).size.width <= 600 ? 16 : 24,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [AppTheme.primaryColor, AppTheme.primaryDarkColor],
@@ -899,62 +1020,84 @@ class _CTASection extends StatelessWidget {
                   curve: Curves.easeInOut,
                 ),
             const SizedBox(height: 32),
-            const Text(
+            Text(
               "Ready to Build Something Amazing?",
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 48,
+                fontSize: MediaQuery.of(context).size.width <= 600 ? 28 : 48,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               "Join thousands of students and professionals who are connecting, collaborating, and creating — all before their teh ais finishes.",
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 20, color: Colors.white70),
+              style: TextStyle(
+                fontSize: MediaQuery.of(context).size.width <= 600 ? 14 : 20,
+                color: Colors.white70,
+              ),
             ),
             const SizedBox(height: 48),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              spacing: 16,
+              runSpacing: 12,
+              alignment: WrapAlignment.center,
               children: [
                 ElevatedButton.icon(
                   onPressed: () => context.go('/login'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: AppTheme.primaryDarkColor,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 20,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: MediaQuery.of(context).size.width <= 600
+                          ? 24
+                          : 32,
+                      vertical: MediaQuery.of(context).size.width <= 600
+                          ? 14
+                          : 20,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
                     elevation: 5,
                   ),
-                  label: const Text(
+                  label: Text(
                     "Join the Network",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: MediaQuery.of(context).size.width <= 600
+                          ? 14
+                          : 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   icon: const Icon(Icons.arrow_forward),
                 ),
-                const SizedBox(width: 16),
                 OutlinedButton(
                   onPressed: () {},
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     side: const BorderSide(color: Colors.white, width: 2),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 20,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: MediaQuery.of(context).size.width <= 600
+                          ? 24
+                          : 32,
+                      vertical: MediaQuery.of(context).size.width <= 600
+                          ? 14
+                          : 20,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     "Learn More",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: MediaQuery.of(context).size.width <= 600
+                          ? 14
+                          : 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -972,20 +1115,23 @@ class _Footer extends StatelessWidget {
     return Container(
       width: double.infinity,
       color: AppTheme.textPrimaryColor,
-      padding: const EdgeInsets.symmetric(vertical: 64, horizontal: 24),
+      padding: EdgeInsets.symmetric(
+        vertical: MediaQuery.of(context).size.width <= 600 ? 32 : 64,
+        horizontal: MediaQuery.of(context).size.width <= 600 ? 16 : 24,
+      ),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1200),
           child: Column(
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: Column(
+              Builder(
+                builder: (context) {
+                  final isMobile = MediaQuery.of(context).size.width <= 600;
+                  if (isMobile) {
+                    return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Logo + Tagline
                         Row(
                           children: [
                             Container(
@@ -997,8 +1143,6 @@ class _Footer extends StatelessWidget {
                                     AppTheme.primaryColor,
                                     AppTheme.primaryDarkColor,
                                   ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -1026,7 +1170,7 @@ class _Footer extends StatelessWidget {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          "Connecting minds, building dreams — one sip at a time. The platform where collaboration happens at the speed of your favorite iced tea.",
+                          "Connecting minds, building dreams — one sip at a time.",
                           style: TextStyle(
                             color: AppTheme.backgroundColor.withValues(
                               alpha: 0.6,
@@ -1034,15 +1178,8 @@ class _Footer extends StatelessWidget {
                             height: 1.5,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 64),
-                  Expanded(
-                    flex: 1,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                        const SizedBox(height: 24),
+                        // Quick Links
                         const Text(
                           "Quick Links",
                           style: TextStyle(
@@ -1051,19 +1188,12 @@ class _Footer extends StatelessWidget {
                             fontSize: 16,
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
                         _FooterLink("Features"),
                         _FooterLink("How It Works"),
                         _FooterLink("Events"),
                         _FooterLink("Blog"),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                        const SizedBox(height: 16),
                         const Text(
                           "Connect",
                           style: TextStyle(
@@ -1072,50 +1202,202 @@ class _Footer extends StatelessWidget {
                             fontSize: 16,
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
                         _FooterLink("Twitter"),
                         _FooterLink("LinkedIn"),
                         _FooterLink("Instagram"),
                         _FooterLink("Discord"),
                       ],
-                    ),
-                  ),
-                ],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        AppTheme.primaryColor,
+                                        AppTheme.primaryDarkColor,
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.asset(
+                                        'assets/logo.png',
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Text(
+                                  "Teh Ais",
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              "Connecting minds, building dreams — one sip at a time. The platform where collaboration happens at the speed of your favorite iced tea.",
+                              style: TextStyle(
+                                color: AppTheme.backgroundColor.withValues(
+                                  alpha: 0.6,
+                                ),
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 64),
+                      Expanded(
+                        flex: 1,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Quick Links",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _FooterLink("Features"),
+                            _FooterLink("How It Works"),
+                            _FooterLink("Events"),
+                            _FooterLink("Blog"),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        flex: 1,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Connect",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _FooterLink("Twitter"),
+                            _FooterLink("LinkedIn"),
+                            _FooterLink("Instagram"),
+                            _FooterLink("Discord"),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 64),
               Divider(color: AppTheme.backgroundColor.withValues(alpha: 0.2)),
               const SizedBox(height: 32),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "© 2026 Teh Ais. Developed with ❤️ for Kitahack.",
-                    style: TextStyle(
-                      color: AppTheme.backgroundColor.withValues(alpha: 0.4),
-                    ),
-                  ),
-                  Row(
+              Builder(
+                builder: (context) {
+                  final isMobile = MediaQuery.of(context).size.width <= 600;
+                  if (isMobile) {
+                    return Column(
+                      children: [
+                        Text(
+                          "© 2026 Teh Ais. Developed with ❤️ for Kitahack.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppTheme.backgroundColor.withValues(
+                              alpha: 0.4,
+                            ),
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "Privacy Policy",
+                              style: TextStyle(
+                                color: AppTheme.backgroundColor.withValues(
+                                  alpha: 0.4,
+                                ),
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Text(
+                              "Terms of Service",
+                              style: TextStyle(
+                                color: AppTheme.backgroundColor.withValues(
+                                  alpha: 0.4,
+                                ),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        "Privacy Policy",
+                        "© 2026 Teh Ais. Developed with ❤️ for Kitahack.",
                         style: TextStyle(
                           color: AppTheme.backgroundColor.withValues(
                             alpha: 0.4,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 24),
-                      Text(
-                        "Terms of Service",
-                        style: TextStyle(
-                          color: AppTheme.backgroundColor.withValues(
-                            alpha: 0.4,
+                      Row(
+                        children: [
+                          Text(
+                            "Privacy Policy",
+                            style: TextStyle(
+                              color: AppTheme.backgroundColor.withValues(
+                                alpha: 0.4,
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 24),
+                          Text(
+                            "Terms of Service",
+                            style: TextStyle(
+                              color: AppTheme.backgroundColor.withValues(
+                                alpha: 0.4,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
-                  ),
-                ],
+                  );
+                },
               ),
             ],
           ),

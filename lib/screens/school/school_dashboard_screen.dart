@@ -2,6 +2,213 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_theme.dart';
 
+void _showPublishDialog(BuildContext context) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: isDark ? const Color(0xFF1e1e1e) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          const Icon(Icons.publish_rounded, color: Colors.teal, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            'Publish Opportunity',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              decoration: InputDecoration(
+                hintText: 'Opportunity title...',
+                prefixIcon: const Icon(Icons.title),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                fillColor: isDark
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : Colors.grey.withValues(alpha: 0.1),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Description...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                fillColor: isDark
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : Colors.grey.withValues(alpha: 0.1),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Category',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: isDark ? Colors.white70 : AppTheme.textPrimaryColor,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children:
+                  ['Internship', 'Workshop', 'Research', 'Event', 'Scholarship']
+                      .map(
+                        (s) => FilterChip(
+                          label: Text(s),
+                          selected: false,
+                          onSelected: (_) {},
+                          selectedColor: Colors.teal.withValues(alpha: 0.2),
+                        ),
+                      )
+                      .toList(),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.pop(ctx);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Opportunity published!')),
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.teal,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Publish'),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showPartnersDialog(BuildContext context) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final partners = [
+    {'name': 'TechCorp Malaysia', 'type': 'Enterprise', 'status': 'Active'},
+    {'name': 'FinBank Asia', 'type': 'Finance', 'status': 'Active'},
+    {
+      'name': 'GreenTech Solutions',
+      'type': 'Sustainability',
+      'status': 'Pending',
+    },
+    {'name': 'NexGen Labs', 'type': 'Research', 'status': 'Active'},
+    {'name': 'DataFlow Inc', 'type': 'Technology', 'status': 'Pending'},
+  ];
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: isDark ? const Color(0xFF1e1e1e) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          const Icon(Icons.business_rounded, color: Colors.teal, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            'Partner Network',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: partners
+              .map(
+                (p) => ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.teal.withValues(alpha: 0.15),
+                    child: Text(
+                      (p['name'] as String)[0],
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.teal,
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    p['name'] as String,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                    ),
+                  ),
+                  subtitle: Text(
+                    p['type'] as String,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white54 : Colors.black45,
+                    ),
+                  ),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: p['status'] == 'Active'
+                          ? Colors.green.withValues(alpha: 0.1)
+                          : Colors.orange.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      p['status'] as String,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: p['status'] == 'Active'
+                            ? Colors.green
+                            : Colors.orange,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
 class SchoolDashboardScreen extends StatelessWidget {
   const SchoolDashboardScreen({super.key});
 
@@ -107,7 +314,7 @@ class _WelcomeBanner extends StatelessWidget {
           Row(
             children: [
               ElevatedButton.icon(
-                onPressed: () {},
+                onPressed: () => _showPublishDialog(context),
                 icon: const Icon(Icons.publish_rounded, size: 16),
                 label: const Text('Publish'),
                 style: ElevatedButton.styleFrom(
@@ -121,7 +328,7 @@ class _WelcomeBanner extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               OutlinedButton.icon(
-                onPressed: () {},
+                onPressed: () => _showPartnersDialog(context),
                 icon: const Icon(Icons.business_rounded, size: 16),
                 label: const Text('Partners'),
                 style: OutlinedButton.styleFrom(
