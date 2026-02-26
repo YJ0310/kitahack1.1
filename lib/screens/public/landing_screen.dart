@@ -578,21 +578,6 @@ class _HeroSection extends StatelessWidget {
                               .animate()
                               .fadeIn(delay: 300.ms, duration: 600.ms)
                               .slideY(begin: 0.2, end: 0),
-                          const SizedBox(height: 64),
-                          // Stats
-                          Wrap(
-                                spacing: width <= 600 ? 24 : 48,
-                                runSpacing: 16,
-                                alignment: WrapAlignment.center,
-                                children: const [
-                                  _StatItem("5min", "Avg. Match Time"),
-                                  _StatItem("1000+", "Teams Formed"),
-                                  _StatItem("50+", "Events Monthly"),
-                                ],
-                              )
-                              .animate()
-                              .fadeIn(delay: 400.ms, duration: 600.ms)
-                              .slideY(begin: 0.2, end: 0),
                         ],
                       ),
                     ),
@@ -640,42 +625,6 @@ class _HeroSection extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _StatItem extends StatelessWidget {
-  final String value;
-  final String label;
-
-  const _StatItem(this.value, this.label);
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final width = MediaQuery.of(context).size.width;
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: width <= 600 ? 28 : 40,
-            fontWeight: FontWeight.bold,
-            color: isDark
-                ? AppTheme.backgroundColor
-                : AppTheme.primaryDarkColor,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: isDark
-                ? AppTheme.backgroundColor.withValues(alpha: 0.6)
-                : AppTheme.primaryColor.withValues(alpha: 0.7),
-          ),
-        ),
-      ],
     );
   }
 }

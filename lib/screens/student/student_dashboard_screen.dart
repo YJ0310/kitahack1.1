@@ -203,25 +203,18 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 _WelcomeBanner(
                   isDark: isDark,
                 ).animate().fadeIn(duration: 500.ms),
-                const SizedBox(height: 24),
-
-                // --- Stats Row ---
-                _StatsGrid(isWide: isWide)
-                    .animate()
-                    .fadeIn(delay: 100.ms, duration: 500.ms)
-                    .slideY(begin: 0.1, end: 0),
                 const SizedBox(height: 28),
 
-                // --- AI Insights ---
+                // --- AI Executive Summary (primary feature) ---
                 _SectionHeader(
                   title: 'AI Executive Summary',
                   icon: Icons.auto_awesome_rounded,
                   iconColor: AppTheme.accentPurple,
-                ).animate().fadeIn(delay: 150.ms, duration: 400.ms),
+                ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
                 const SizedBox(height: 12),
                 _AIInsightsList(
                   insights: _aiInsights,
-                ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
+                ).animate().fadeIn(delay: 150.ms, duration: 500.ms),
                 const SizedBox(height: 28),
 
                 // --- Events + Teams ---
@@ -598,166 +591,6 @@ class _BannerButton extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────
-// Stats Grid
-// ─────────────────────────────────────────────────────────
-class _StatsGrid extends StatelessWidget {
-  final bool isWide;
-  const _StatsGrid({required this.isWide});
-
-  @override
-  Widget build(BuildContext context) {
-    final stats = [
-      {
-        'label': 'Events Joined',
-        'value': '12',
-        'trend': '+3 this month',
-        'icon': Icons.calendar_today_rounded,
-        'colors': [AppTheme.primaryColor, AppTheme.secondaryColor],
-      },
-      {
-        'label': 'Teams',
-        'value': '3',
-        'trend': null,
-        'icon': Icons.groups_rounded,
-        'colors': [AppTheme.secondaryColor, AppTheme.backgroundColor],
-      },
-      {
-        'label': 'Achievements',
-        'value': '7',
-        'trend': '+1 new',
-        'icon': Icons.emoji_events_rounded,
-        'colors': [AppTheme.primaryDarkColor, AppTheme.primaryColor],
-      },
-      {
-        'label': 'Connections',
-        'value': '45',
-        'trend': '+8 this week',
-        'icon': Icons.bolt_rounded,
-        'colors': [AppTheme.backgroundColor, AppTheme.secondaryColor],
-      },
-    ];
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: isWide ? 4 : 2,
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
-        childAspectRatio: isWide ? 1.4 : 1.3,
-      ),
-      itemCount: stats.length,
-      itemBuilder: (context, i) => _StatCard(stat: stats[i]),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final Map<String, dynamic> stat;
-
-  const _StatCard({required this.stat});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colors = stat['colors'] as List<Color>;
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.08)
-              : AppTheme.backgroundColor.withValues(alpha: 0.5),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Text(
-                  stat['label'] as String,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.5)
-                        : AppTheme.primaryColor.withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: colors,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  stat['icon'] as IconData,
-                  size: 16,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                stat['value'] as String,
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : AppTheme.textPrimaryColor,
-                ),
-              ),
-              if (stat['trend'] != null)
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.trending_up_rounded,
-                      size: 13,
-                      color: Colors.green,
-                    ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        stat['trend'] as String,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.green,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-            ],
-          ),
-        ],
       ),
     );
   }
