@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -28,6 +29,11 @@ class StudentDashboardScreen extends StatefulWidget {
 class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   late List<Map<String, dynamic>> _aiInsights;
   bool _loading = true;
+
+  // AI Command
+  final _aiCmdCtrl = TextEditingController();
+  bool _aiCmdLoading = false;
+  String? _aiCmdResult;
 
   // ── Temp Chat ──
   bool _chatOpen = false;
@@ -76,6 +82,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   void dispose() {
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
+    _aiCmdCtrl.dispose();
     super.dispose();
   }
 
@@ -177,6 +184,31 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
+  /// Execute an AI command with high permissions
+  Future<void> _runAiCommand() async {
+    final prompt = _aiCmdCtrl.text.trim();
+    if (prompt.isEmpty) return;
+    setState(() { _aiCmdLoading = true; _aiCmdResult = null; });
+    try {
+      final result = await ApiService().aiCommand(prompt);
+      final desc = result['description'] ?? 'Done';
+      final executed = result['executed'] == true;
+      setState(() {
+        _aiCmdResult = executed ? '✅ $desc' : '💡 $desc';
+        _aiCmdLoading = false;
+      });
+      if (executed) {
+        _aiCmdCtrl.clear();
+        _fetchFromBackend(); // Refresh data
+      }
+    } catch (e) {
+      setState(() {
+        _aiCmdResult = '❌ Failed: $e';
+        _aiCmdLoading = false;
+      });
+    }
+  }
+
   // --- Data (loaded from API) ---
   final List<Map<String, dynamic>> _upcomingEvents = [];
   final List<Map<String, dynamic>> _myTeams = [];
@@ -211,6 +243,16 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 ).animate().fadeIn(duration: 500.ms),
                 const SizedBox(height: 28),
 
+                // --- AI Command Prompt Area ---
+                _AiCommandBox(
+                  controller: _aiCmdCtrl,
+                  loading: _aiCmdLoading,
+                  result: _aiCmdResult,
+                  isDark: isDark,
+                  onSubmit: _runAiCommand,
+                ).animate().fadeIn(delay: 50.ms, duration: 400.ms),
+                const SizedBox(height: 28),
+
                 // --- AI Executive Summary (primary feature) ---
                 _SectionHeader(
                   title: 'AI Executive Summary',
@@ -218,9 +260,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   iconColor: AppTheme.accentPurple,
                 ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
                 const SizedBox(height: 12),
-                _AIInsightsList(
-                  insights: _aiInsights,
-                ).animate().fadeIn(delay: 150.ms, duration: 500.ms),
+                if (_loading)
+                  _SkeletonCard(isDark: isDark, height: 120)
+                else if (_aiInsights.isEmpty)
+                  _EmptyState(isDark: isDark, icon: Icons.auto_awesome_rounded, message: 'AI is analyzing your profile...', actionLabel: 'Refresh', onAction: _fetchFromBackend)
+                else
+                  _AIInsightsList(insights: _aiInsights),
                 const SizedBox(height: 28),
 
                 // --- Events + Teams ---
@@ -241,12 +286,17 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                               onAction: () => context.go('/student/events'),
                             ),
                             const SizedBox(height: 12),
-                            ..._upcomingEvents.map(
-                              (e) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: _EventCard(event: e, isDark: isDark),
+                            if (_loading)
+                              ...[for (var i = 0; i < 2; i++) Padding(padding: const EdgeInsets.only(bottom: 12), child: _SkeletonCard(isDark: isDark, height: 90))]
+                            else if (_upcomingEvents.isEmpty)
+                              _EmptyState(isDark: isDark, icon: Icons.event_rounded, message: 'No upcoming events', actionLabel: 'Browse Events', onAction: () => context.go('/student/events'))
+                            else
+                              ..._upcomingEvents.map(
+                                (e) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: _EventCard(event: e, isDark: isDark),
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),
@@ -263,12 +313,17 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                               onAction: () => context.go('/student/teams'),
                             ),
                             const SizedBox(height: 12),
-                            ..._myTeams.map(
-                              (t) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: _TeamCard(team: t, isDark: isDark),
+                            if (_loading)
+                              ...[for (var i = 0; i < 2; i++) Padding(padding: const EdgeInsets.only(bottom: 12), child: _SkeletonCard(isDark: isDark, height: 80))]
+                            else if (_myTeams.isEmpty)
+                              _EmptyState(isDark: isDark, icon: Icons.group_add_rounded, message: 'No teams yet', actionLabel: 'Create Team', onAction: () => context.go('/student/teams'))
+                            else
+                              ..._myTeams.map(
+                                (t) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: _TeamCard(team: t, isDark: isDark),
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),
@@ -286,12 +341,17 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         onAction: () => context.go('/student/events'),
                       ),
                       const SizedBox(height: 12),
-                      ..._upcomingEvents.map(
-                        (e) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _EventCard(event: e, isDark: isDark),
+                      if (_loading)
+                        ...[for (var i = 0; i < 2; i++) Padding(padding: const EdgeInsets.only(bottom: 12), child: _SkeletonCard(isDark: isDark, height: 90))]
+                      else if (_upcomingEvents.isEmpty)
+                        _EmptyState(isDark: isDark, icon: Icons.event_rounded, message: 'No upcoming events', actionLabel: 'Browse Events', onAction: () => context.go('/student/events'))
+                      else
+                        ..._upcomingEvents.map(
+                          (e) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _EventCard(event: e, isDark: isDark),
+                          ),
                         ),
-                      ),
                       const SizedBox(height: 20),
                       _SectionHeader(
                         title: 'My Teams',
@@ -301,26 +361,38 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         onAction: () => context.go('/student/teams'),
                       ),
                       const SizedBox(height: 12),
-                      ..._myTeams.map(
-                        (t) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _TeamCard(team: t, isDark: isDark),
+                      if (_loading)
+                        ...[for (var i = 0; i < 2; i++) Padding(padding: const EdgeInsets.only(bottom: 12), child: _SkeletonCard(isDark: isDark, height: 80))]
+                      else if (_myTeams.isEmpty)
+                        _EmptyState(isDark: isDark, icon: Icons.group_add_rounded, message: 'No teams yet', actionLabel: 'Create Team', onAction: () => context.go('/student/teams'))
+                      else
+                        ..._myTeams.map(
+                          (t) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _TeamCard(team: t, isDark: isDark),
+                          ),
                         ),
-                      ),
                     ],
                   ).animate().fadeIn(delay: 250.ms, duration: 500.ms),
 
                 const SizedBox(height: 28),
                 // --- AI Recommended Events ---
-                if (_recommendedEvents.isNotEmpty) ...[
-                  _SectionHeader(
-                    title: 'Recommended For You',
-                    icon: Icons.auto_awesome_rounded,
-                    iconColor: const Color(0xFF8B5CF6),
-                    actionText: 'View All',
-                    onAction: () => context.go('/student/events'),
-                  ).animate().fadeIn(delay: 275.ms, duration: 400.ms),
-                  const SizedBox(height: 12),
+                _SectionHeader(
+                  title: 'Recommended For You',
+                  icon: Icons.auto_awesome_rounded,
+                  iconColor: const Color(0xFF8B5CF6),
+                  actionText: 'View All',
+                  onAction: () => context.go('/student/events'),
+                ).animate().fadeIn(delay: 275.ms, duration: 400.ms),
+                const SizedBox(height: 12),
+                if (_loading)
+                  SizedBox(
+                    height: 150,
+                    child: Row(children: [for (var i = 0; i < 3; i++) Expanded(child: Padding(padding: EdgeInsets.only(right: i < 2 ? 12 : 0), child: _SkeletonCard(isDark: isDark, height: 150)))]),
+                  )
+                else if (_recommendedEvents.isEmpty)
+                  _EmptyState(isDark: isDark, icon: Icons.recommend_rounded, message: 'No recommendations yet — complete your profile for better matches', actionLabel: 'Browse Events', onAction: () => context.go('/student/events'))
+                else
                   SizedBox(
                     height: 150,
                     child: ListView.separated(
@@ -333,8 +405,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       },
                     ),
                   ).animate().fadeIn(delay: 280.ms, duration: 500.ms),
-                  const SizedBox(height: 28),
-                ],
+                const SizedBox(height: 28),
                 // --- Suggested Connections ---
                 _SectionHeader(
                   title: 'Suggested for You',
@@ -344,11 +415,19 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   onAction: () => _showSuggestedDialog(context),
                 ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
                 const SizedBox(height: 12),
-                _SuggestedConnectionsGrid(
-                  users: _suggestedUsers,
-                  isDark: isDark,
-                  isWide: isWide,
-                ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
+                if (_loading)
+                  SizedBox(
+                    height: 120,
+                    child: Row(children: [for (var i = 0; i < 4; i++) Expanded(child: Padding(padding: EdgeInsets.only(right: i < 3 ? 12 : 0), child: _SkeletonCard(isDark: isDark, height: 120)))]),
+                  )
+                else if (_suggestedUsers.isEmpty)
+                  _EmptyState(isDark: isDark, icon: Icons.person_search_rounded, message: 'No suggestions yet — add skills and interests to your profile')
+                else
+                  _SuggestedConnectionsGrid(
+                    users: _suggestedUsers,
+                    isDark: isDark,
+                    isWide: isWide,
+                  ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
                 const SizedBox(height: 80),
               ],
             ),
@@ -1472,7 +1551,7 @@ class _ChatPanel extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          'Temporary · clears when you leave',
+                          'Temporary · expires after 48 hours',
                           style: TextStyle(fontSize: 10, color: sc),
                         ),
                       ],
@@ -1724,6 +1803,230 @@ class _RecommendedEventCard extends StatelessWidget {
                 Text(rec['date'] ?? '', style: TextStyle(fontSize: 10, color: sc)),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── AI Command Box ─────────────────────────────────────
+class _AiCommandBox extends StatelessWidget {
+  final TextEditingController controller;
+  final bool loading;
+  final String? result;
+  final bool isDark;
+  final VoidCallback onSubmit;
+
+  const _AiCommandBox({
+    required this.controller,
+    required this.loading,
+    required this.result,
+    required this.isDark,
+    required this.onSubmit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = isDark ? const Color(0xFF1E1E2E) : Colors.white;
+    final border = isDark ? Colors.white10 : Colors.black12;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.accentPurple.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.accentPurple.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.auto_awesome, size: 18, color: AppTheme.accentPurple),
+              const SizedBox(width: 8),
+              Text(
+                'AI Assistant',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentPurple.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'High Access',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.accentPurple),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: controller,
+                  style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black87),
+                  decoration: InputDecoration(
+                    hintText: 'e.g. "Add suitable tags for me", "Suggest events"...',
+                    hintStyle: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : Colors.black38),
+                    filled: true,
+                    fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade50,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppTheme.accentPurple, width: 1.5),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    isDense: true,
+                  ),
+                  onFieldSubmitted: (_) => onSubmit(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 42,
+                child: ElevatedButton.icon(
+                  onPressed: loading ? null : onSubmit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.accentPurple,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                  ),
+                  icon: loading
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.auto_awesome, size: 16),
+                  label: Text(loading ? 'Running...' : 'Ask AI', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+          if (result != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.accentPurple.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.accentPurple.withValues(alpha: 0.15)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.check_circle_rounded, size: 16, color: AppTheme.accentPurple),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      result!,
+                      style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Skeleton Loading Card ──────────────────────────────
+class _SkeletonCard extends StatelessWidget {
+  final bool isDark;
+  final double height;
+
+  const _SkeletonCard({required this.isDark, required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    final base = isDark ? const Color(0xFF2A2A3A) : const Color(0xFFE8E8E8);
+    final highlight = isDark ? const Color(0xFF3A3A4A) : const Color(0xFFF5F5F5);
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        gradient: LinearGradient(
+          colors: [base, highlight, base],
+          stops: const [0.0, 0.5, 1.0],
+        ),
+      ),
+    ).animate(onPlay: (c) => c.repeat())
+     .shimmer(duration: 1200.ms, color: highlight.withValues(alpha: 0.3));
+  }
+}
+
+// ─── Empty State Widget ─────────────────────────────────
+class _EmptyState extends StatelessWidget {
+  final bool isDark;
+  final IconData icon;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  const _EmptyState({
+    required this.isDark,
+    required this.icon,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sc = isDark ? Colors.white38 : Colors.black38;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 36, color: sc),
+          const SizedBox(height: 10),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: sc, height: 1.4),
+          ),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: 14),
+            TextButton(
+              onPressed: onAction,
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.primaryColor,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.08),
+              ),
+              child: Text(actionLabel!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+          ],
         ],
       ),
     );

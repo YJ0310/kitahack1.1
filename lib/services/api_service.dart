@@ -288,6 +288,43 @@ class ApiService {
     final data = await _get('/insights');
     return Map<String, dynamic>.from(data);
   }
+
+  /// AI command — high-permission AI assistant that can take actions
+  Future<Map<String, dynamic>> aiCommand(String prompt) async {
+    final data = await _post('/insights/ai-command', {'prompt': prompt});
+    return Map<String, dynamic>.from(data);
+  }
+
+  // ─── Storage / Upload ─────────────────────────────────────────────────────
+
+  /// Upload a file to Firebase Storage via the backend.
+  /// Returns { url, filename, contentType, size }.
+  Future<Map<String, dynamic>> uploadFile(
+    List<int> bytes,
+    String fileName,
+    String mimeType, {
+    String folder = 'uploads',
+  }) async {
+    final uri = Uri.parse('$_baseUrl/storage/upload?folder=$folder');
+    final req = http.MultipartRequest('POST', uri);
+    // Auth header
+    if (_idToken != null) {
+      req.headers['Authorization'] = 'Bearer $_idToken';
+    } else if (_uid != null) {
+      req.headers['X-Dev-UID'] = _uid!;
+    }
+    req.files.add(http.MultipartFile.fromBytes(
+      'file',
+      bytes,
+      filename: fileName,
+    ));
+    final streamed = await req.send();
+    final body = await streamed.stream.bytesToString();
+    if (streamed.statusCode >= 200 && streamed.statusCode < 300) {
+      return Map<String, dynamic>.from(jsonDecode(body));
+    }
+    throw ApiException(streamed.statusCode, body);
+  }
 }
 
 class ApiException implements Exception {

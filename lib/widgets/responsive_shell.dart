@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:file_picker/file_picker.dart';
 import '../main.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
+import '../services/api_service.dart';
 
 class ResponsiveShell extends StatelessWidget {
   final Widget child;
@@ -219,6 +221,9 @@ class _TopBar extends StatelessWidget {
               );
             },
           ),
+          const SizedBox(width: 8),
+          // Upload Button
+          _UploadButton(isDark: isDark),
           const SizedBox(width: 12),
           // Avatar
           CircleAvatar(
@@ -635,6 +640,110 @@ class _NavItem extends StatelessWidget {
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Upload Button ──────────────────────────────────────
+class _UploadButton extends StatefulWidget {
+  final bool isDark;
+  const _UploadButton({required this.isDark});
+
+  @override
+  State<_UploadButton> createState() => _UploadButtonState();
+}
+
+class _UploadButtonState extends State<_UploadButton> {
+  bool _uploading = false;
+
+  Future<void> _pickAndUpload() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'webp'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    if (file.bytes == null) return;
+
+    setState(() => _uploading = true);
+    try {
+      final mimeType = _guessMime(file.extension ?? '');
+      await ApiService().uploadFile(
+        file.bytes!,
+        file.name,
+        mimeType,
+        folder: 'user-uploads',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Uploaded ${file.name}'),
+            backgroundColor: AppTheme.primaryColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Upload failed: $e'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  String _guessMime(String ext) {
+    switch (ext.toLowerCase()) {
+      case 'pdf':   return 'application/pdf';
+      case 'doc':   return 'application/msword';
+      case 'docx':  return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'png':   return 'image/png';
+      case 'jpg':
+      case 'jpeg':  return 'image/jpeg';
+      case 'webp':  return 'image/webp';
+      default:      return 'application/octet-stream';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Upload file',
+      child: GestureDetector(
+        onTap: _uploading ? null : _pickAndUpload,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: widget.isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : AppTheme.backgroundColor.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: widget.isDark
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : AppTheme.backgroundColor,
+            ),
+          ),
+          child: _uploading
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(
+                  Icons.cloud_upload_rounded,
+                  size: 16,
+                  color: widget.isDark ? Colors.white70 : AppTheme.primaryColor,
+                ),
         ),
       ),
     );
