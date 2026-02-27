@@ -184,7 +184,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
-  /// Execute an AI command with high permissions
+  /// Execute an AI command with high permissions (Jarvis mode)
   Future<void> _runAiCommand() async {
     final prompt = _aiCmdCtrl.text.trim();
     if (prompt.isEmpty) return;
@@ -193,13 +193,20 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       final result = await ApiService().aiCommand(prompt);
       final desc = result['description'] ?? 'Done';
       final executed = result['executed'] == true;
+      final action = result['action'] ?? '';
       setState(() {
         _aiCmdResult = executed ? '✅ $desc' : '💡 $desc';
         _aiCmdLoading = false;
       });
       if (executed) {
         _aiCmdCtrl.clear();
-        _fetchFromBackend(); // Refresh data
+        // Handle navigation action
+        if (action == 'navigate' && result['data'] != null && mounted) {
+          final path = result['data']['path'] ?? '/student';
+          context.go(path);
+        } else {
+          _fetchFromBackend(); // Refresh data
+        }
       }
     } catch (e) {
       setState(() {
@@ -243,22 +250,12 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 ).animate().fadeIn(duration: 500.ms),
                 const SizedBox(height: 28),
 
-                // --- AI Command Prompt Area ---
-                _AiCommandBox(
-                  controller: _aiCmdCtrl,
-                  loading: _aiCmdLoading,
-                  result: _aiCmdResult,
-                  isDark: isDark,
-                  onSubmit: _runAiCommand,
-                ).animate().fadeIn(delay: 50.ms, duration: 400.ms),
-                const SizedBox(height: 28),
-
-                // --- AI Executive Summary (primary feature) ---
+                // --- AI Executive Summary (right after greeting) ---
                 _SectionHeader(
                   title: 'AI Executive Summary',
                   icon: Icons.auto_awesome_rounded,
                   iconColor: AppTheme.accentPurple,
-                ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
+                ).animate().fadeIn(delay: 50.ms, duration: 400.ms),
                 const SizedBox(height: 12),
                 if (_loading)
                   _SkeletonCard(isDark: isDark, height: 120)
@@ -266,6 +263,16 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   _EmptyState(isDark: isDark, icon: Icons.auto_awesome_rounded, message: 'AI is analyzing your profile...', actionLabel: 'Refresh', onAction: _fetchFromBackend)
                 else
                   _AIInsightsList(insights: _aiInsights),
+                const SizedBox(height: 28),
+
+                // --- AI Command Prompt Area ---
+                _AiCommandBox(
+                  controller: _aiCmdCtrl,
+                  loading: _aiCmdLoading,
+                  result: _aiCmdResult,
+                  isDark: isDark,
+                  onSubmit: _runAiCommand,
+                ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
                 const SizedBox(height: 28),
 
                 // --- Events + Teams ---
@@ -630,25 +637,6 @@ class _WelcomeBanner extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.85),
                   height: 1.5,
                 ),
-              ),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                children: [
-                  _BannerButton(
-                    label: 'Browse Events',
-                    icon: Icons.calendar_today_rounded,
-                    filled: true,
-                    onTap: () => context.go('/student/events'),
-                  ),
-                  _BannerButton(
-                    label: 'My Teams',
-                    icon: Icons.group_rounded,
-                    filled: false,
-                    onTap: () => context.go('/student/teams'),
-                  ),
-                ],
               ),
             ],
           ),

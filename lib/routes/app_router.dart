@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 
+import '../services/auth_service.dart';
 import '../screens/public/landing_screen.dart';
 import '../screens/public/login_screen.dart';
 
@@ -21,6 +22,15 @@ import '../screens/enterprise/candidate_search_screen.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
+  redirect: (context, state) {
+    final isLoggedIn = AuthService().isLoggedIn;
+    final loc = state.uri.toString();
+    final isProtected = loc.startsWith('/student') ||
+        loc.startsWith('/school') ||
+        loc.startsWith('/enterprise');
+    if (!isLoggedIn && isProtected) return '/';
+    return null;
+  },
   routes: [
     GoRoute(path: '/', builder: (context, state) => const LandingScreen()),
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),

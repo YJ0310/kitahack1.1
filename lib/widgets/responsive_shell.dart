@@ -128,43 +128,47 @@ class _TopBar extends StatelessWidget {
           // Breadcrumb Trail
           Expanded(
             child: Row(
-              children: crumbs.asMap().entries.expand((entry) {
-                final i = entry.key;
-                final crumb = entry.value;
-                final isLast = i == crumbs.length - 1;
-                return [
-                  GestureDetector(
-                    onTap: isLast ? null : () => context.go(crumb['path']!),
-                    child: Text(
-                      crumb['label']!,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: isLast ? FontWeight.w600 : FontWeight.w400,
-                        color: isLast
-                            ? (isDark
-                                  ? Colors.white
-                                  : AppTheme.textPrimaryColor)
-                            : (isDark
-                                  ? Colors.white.withValues(alpha: 0.4)
-                                  : AppTheme.primaryColor.withValues(
-                                      alpha: 0.5,
-                                    )),
+              children: [
+                ...crumbs.asMap().entries.expand((entry) {
+                  final i = entry.key;
+                  final crumb = entry.value;
+                  final isLast = i == crumbs.length - 1;
+                  return [
+                    GestureDetector(
+                      onTap: isLast ? null : () => context.go(crumb['path']!),
+                      child: Text(
+                        crumb['label']!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isLast ? FontWeight.w600 : FontWeight.w400,
+                          color: isLast
+                              ? (isDark
+                                    ? Colors.white
+                                    : AppTheme.textPrimaryColor)
+                              : (isDark
+                                    ? Colors.white.withValues(alpha: 0.4)
+                                    : AppTheme.primaryColor.withValues(
+                                        alpha: 0.5,
+                                      )),
+                        ),
                       ),
                     ),
-                  ),
-                  if (!isLast)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: Icon(
-                        Icons.chevron_right_rounded,
-                        size: 14,
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.3)
-                            : AppTheme.primaryColor.withValues(alpha: 0.35),
+                    if (!isLast)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: Icon(
+                          Icons.chevron_right_rounded,
+                          size: 14,
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.3)
+                              : AppTheme.primaryColor.withValues(alpha: 0.35),
+                        ),
                       ),
-                    ),
-                ];
-              }).toList(),
+                  ];
+                }),
+                const SizedBox(width: 12),
+                _UploadButton(isDark: isDark),
+              ],
             ),
           ),
           // Dark Mode Toggle
@@ -221,9 +225,6 @@ class _TopBar extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(width: 8),
-          // Upload Button
-          _UploadButton(isDark: isDark),
           const SizedBox(width: 12),
           // Avatar
           CircleAvatar(
