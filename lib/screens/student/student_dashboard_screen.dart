@@ -1,8 +1,9 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
+import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
 
 // ─── Temp Chat Data ───────────────────────────────────────────────────────────
 class _ChatMsg {
@@ -25,7 +26,8 @@ class StudentDashboardScreen extends StatefulWidget {
 }
 
 class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
-  late final List<Map<String, dynamic>> _aiInsights;
+  late List<Map<String, dynamic>> _aiInsights;
+  bool _loading = true;
 
   // ── Temp Chat ──
   bool _chatOpen = false;
@@ -80,105 +82,106 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _generateDynamicInsights();
+    _aiInsights = [];
+    _fetchFromBackend();
   }
 
-  void _generateDynamicInsights() {
-    final allPossibleInsights = [
-      {
-        'title': 'New Team Request',
-        'content':
-            'Sarah from IT Faculty invited you to join "Fintech Hackathon".',
-        'icon': Icons.group_add_rounded,
-        'color': AppTheme.primaryColor,
-        'actionText': 'Accept',
-      },
-      {
-        'title': 'Strategic Event Alert',
-        'content':
-            'Data Science Workshop starts in 2 hours. Required to upgrade your "Python" tag.',
-        'icon': Icons.event_rounded,
-        'color': AppTheme.secondaryColor,
-        'actionText': 'Join',
-      },
-      {
-        'title': 'Enterprise Match',
-        'content':
-            'FinBank Asia posted an internship matching your "Data Analysis" tags (92% match).',
-        'icon': Icons.business_center_rounded,
-        'color': AppTheme.accentPurple,
-        'actionText': 'Apply',
-      },
-    ];
-    allPossibleInsights.shuffle();
-    final insightCount = 2 + Random().nextInt(2);
-    _aiInsights = allPossibleInsights.take(insightCount).toList();
+  /// Fetch live data from backend.
+  Future<void> _fetchFromBackend() async {
+    final api = ApiService();
+    try {
+      final insightData = await api.getInsights();
+      if (insightData['insights'] != null) {
+        final raw = insightData['insights'];
+        if (raw is List && raw.isNotEmpty) {
+          _aiInsights = raw.map<Map<String, dynamic>>((i) {
+            return {
+              'title': i['title'] ?? 'AI Insight',
+              'content': i['content'] ?? i.toString(),
+              'icon': Icons.auto_awesome_rounded,
+              'color': AppTheme.primaryColor,
+              'actionText': 'View',
+            };
+          }).toList();
+        }
+      }
+    } catch (_) {}
+
+    try {
+      final events = await api.getEvents(upcoming: true);
+      _upcomingEvents
+        ..clear()
+        ..addAll(events.take(3).map((e) {
+              return <String, dynamic>{
+                'title': e.title,
+                'month': e.month,
+                'day': e.day,
+                'time': e.eventDate != null
+                    ? '${e.eventDate!.hour}:${e.eventDate!.minute.toString().padLeft(2, '0')}'
+                    : '',
+                'location': e.location,
+                'teamRequired': e.type == 'Competition',
+                'category': e.type,
+              };
+            }));
+    } catch (_) {}
+
+    try {
+      final matches = await api.getMyMatches();
+      _myTeams
+        ..clear()
+        ..addAll(matches.take(3).map((m) {
+              return <String, dynamic>{
+                'name': 'Match: ${m.postId.substring(0, 8)}',
+                'members': 2,
+                'event': m.matchType,
+                'status': m.matchStatus,
+              };
+            }));
+    } catch (_) {}
+
+    try {
+      final candidates = await api.smartSearch('suggested connections');
+      _suggestedUsers
+        ..clear()
+        ..addAll(candidates.take(3).map((c) {
+              final m = Map<String, dynamic>.from(c);
+              return <String, dynamic>{
+                'name': m['name'] ?? 'User',
+                'faculty': m['faculty'] ?? m['major'] ?? '',
+                'skills': List<String>.from(m['skills'] ?? m['tags'] ?? []),
+                'matchScore': ((m['score'] ?? 0) * 100).toInt(),
+                'online': true,
+              };
+            }));
+    } catch (_) {}
+
+    // Fetch AI-recommended events
+    try {
+      final recs = await api.recommendEvents();
+      _recommendedEvents
+        ..clear()
+        ..addAll(recs.take(4).map((r) {
+          final m = Map<String, dynamic>.from(r);
+          return <String, dynamic>{
+            'title': m['title'] ?? m['eventTitle'] ?? 'Event',
+            'reason': m['reason'] ?? m['explanation'] ?? 'Matches your profile',
+            'category': m['type'] ?? m['category'] ?? 'Event',
+            'date': m['date'] ?? '',
+            'location': m['location'] ?? '',
+            'score': m['score'] ?? m['relevanceScore'] ?? 0,
+          };
+        }));
+    } catch (_) {}
+
+    if (mounted) setState(() => _loading = false);
   }
 
-  // --- Data ---
-  final List<Map<String, dynamic>> _upcomingEvents = [
-    {
-      'title': 'Kitahack 2026',
-      'month': 'MAR',
-      'day': '15',
-      'time': '9:00 AM',
-      'location': 'Main Hall',
-      'teamRequired': true,
-      'category': 'Hackathon',
-    },
-    {
-      'title': 'Flutter Workshop',
-      'month': 'MAR',
-      'day': '18',
-      'time': '2:00 PM',
-      'location': 'Lab 3',
-      'teamRequired': false,
-      'category': 'Workshop',
-    },
-    {
-      'title': 'Networking Mixer',
-      'month': 'MAR',
-      'day': '22',
-      'time': '6:00 PM',
-      'location': 'Cafeteria',
-      'teamRequired': false,
-      'category': 'Networking',
-    },
-  ];
-
-  final List<Map<String, dynamic>> _myTeams = [
-    {
-      'name': 'Project Phoenix',
-      'members': 4,
-      'event': 'Kitahack 2026',
-      'status': 'Active',
-    },
-    {'name': 'Study Buddies', 'members': 3, 'event': null, 'status': 'Casual'},
-  ];
-
-  final List<Map<String, dynamic>> _suggestedUsers = [
-    {
-      'name': 'Sarah Lee',
-      'faculty': 'Computer Science',
-      'skills': ['React', 'Node.js', 'UI/UX'],
-      'matchScore': 92,
-      'online': true,
-    },
-    {
-      'name': 'John Tan',
-      'faculty': 'Business',
-      'skills': ['Marketing', 'Strategy', 'Finance'],
-      'matchScore': 87,
-      'online': false,
-    },
-    {
-      'name': 'Maya Wong',
-      'faculty': 'Design',
-      'skills': ['Figma', 'Branding', 'Motion'],
-      'matchScore': 85,
-      'online': true,
-    },
-  ];
+  // --- Data (loaded from API) ---
+  final List<Map<String, dynamic>> _upcomingEvents = [];
+  final List<Map<String, dynamic>> _myTeams = [];
+  final List<Map<String, dynamic>> _suggestedUsers = [];
+  final List<Map<String, dynamic>> _recommendedEvents = [];
 
   @override
   Widget build(BuildContext context) {
@@ -202,6 +205,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 // --- Welcome Banner ---
                 _WelcomeBanner(
                   isDark: isDark,
+                  userName: AuthService().displayName?.split(' ').first ?? 'User',
+                  eventCount: _upcomingEvents.length,
+                  teamCount: _myTeams.length,
                 ).animate().fadeIn(duration: 500.ms),
                 const SizedBox(height: 28),
 
@@ -305,6 +311,30 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   ).animate().fadeIn(delay: 250.ms, duration: 500.ms),
 
                 const SizedBox(height: 28),
+                // --- AI Recommended Events ---
+                if (_recommendedEvents.isNotEmpty) ...[
+                  _SectionHeader(
+                    title: 'Recommended For You',
+                    icon: Icons.auto_awesome_rounded,
+                    iconColor: const Color(0xFF8B5CF6),
+                    actionText: 'View All',
+                    onAction: () => context.go('/student/events'),
+                  ).animate().fadeIn(delay: 275.ms, duration: 400.ms),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 150,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _recommendedEvents.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 12),
+                      itemBuilder: (_, i) {
+                        final rec = _recommendedEvents[i];
+                        return _RecommendedEventCard(rec: rec, isDark: isDark);
+                      },
+                    ),
+                  ).animate().fadeIn(delay: 280.ms, duration: 500.ms),
+                  const SizedBox(height: 28),
+                ],
                 // --- Suggested Connections ---
                 _SectionHeader(
                   title: 'Suggested for You',
@@ -450,7 +480,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 // ─────────────────────────────────────────────────────────
 class _WelcomeBanner extends StatelessWidget {
   final bool isDark;
-  const _WelcomeBanner({required this.isDark});
+  final String userName;
+  final int eventCount;
+  final int teamCount;
+  const _WelcomeBanner({required this.isDark, this.userName = 'User', this.eventCount = 0, this.teamCount = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -503,7 +536,7 @@ class _WelcomeBanner extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Good morning, Ahmad! ☕',
+                'Good morning, $userName! ☕',
                 style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
@@ -512,7 +545,7 @@ class _WelcomeBanner extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'You have 3 upcoming events and 2 team invitations pending.\nGrab a teh ais and start connecting!',
+                'You have $eventCount upcoming events and $teamCount team invitations pending.\nGrab a teh ais and start connecting!',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.white.withValues(alpha: 0.85),
@@ -1604,6 +1637,94 @@ class _ChatPanel extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── AI Recommended Event Card ───────────────────────────────────────────────
+class _RecommendedEventCard extends StatelessWidget {
+  final Map<String, dynamic> rec;
+  final bool isDark;
+
+  const _RecommendedEventCard({required this.rec, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final tc = isDark ? Colors.white : const Color(0xFF0F172A);
+    final sc = isDark ? Colors.white60 : const Color(0xFF64748B);
+
+    return Container(
+      width: 260,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.auto_awesome_rounded, size: 14, color: Colors.white),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  rec['title'] ?? '',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: tc),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            rec['reason'] ?? 'Recommended based on your profile',
+            style: TextStyle(fontSize: 11, color: sc),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const Spacer(),
+          Row(
+            children: [
+              if ((rec['category'] ?? '').toString().isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    rec['category'] ?? '',
+                    style: const TextStyle(fontSize: 10, color: AppTheme.primaryColor, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              const Spacer(),
+              if ((rec['date'] ?? '').toString().isNotEmpty)
+                Text(rec['date'] ?? '', style: TextStyle(fontSize: 10, color: sc)),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -1,59 +1,52 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_theme.dart';
+import '../../services/api_service.dart';
 
-class EnterpriseNetworkScreen extends StatelessWidget {
+class EnterpriseNetworkScreen extends StatefulWidget {
   const EnterpriseNetworkScreen({super.key});
+
+  @override
+  State<EnterpriseNetworkScreen> createState() => _EnterpriseNetworkState();
+}
+
+class _EnterpriseNetworkState extends State<EnterpriseNetworkScreen> {
+  bool _loading = true;
+  List<Map<String, dynamic>> _enterprises = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    try {
+      final results = await ApiService().smartSearch('enterprise partners');
+      _enterprises = results.map<Map<String, dynamic>>((c) {
+        final m = Map<String, dynamic>.from(c);
+        return {
+          'name': m['name'] ?? 'Enterprise',
+          'type': m['type'] ?? m['industry'] ?? 'Technology',
+          'students': m['students'] ?? 0,
+          'status': m['status'] ?? 'Active',
+          'events': m['events'] ?? 0,
+        };
+      }).toList();
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isWide = MediaQuery.of(context).size.width > 900;
 
-    final enterprises = [
-      {
-        'name': 'TechCorp Malaysia',
-        'type': 'Technology',
-        'students': 42,
-        'status': 'Active',
-        'events': 5,
-      },
-      {
-        'name': 'FinanceHub',
-        'type': 'Finance',
-        'students': 28,
-        'status': 'Active',
-        'events': 3,
-      },
-      {
-        'name': 'GreenTech Solutions',
-        'type': 'Sustainability',
-        'students': 15,
-        'status': 'Pending',
-        'events': 1,
-      },
-      {
-        'name': 'MedTech Asia',
-        'type': 'Healthcare',
-        'students': 22,
-        'status': 'Active',
-        'events': 4,
-      },
-      {
-        'name': 'EduWorks',
-        'type': 'Education',
-        'students': 35,
-        'status': 'Active',
-        'events': 6,
-      },
-      {
-        'name': 'CloudNine Labs',
-        'type': 'Cloud Computing',
-        'students': 18,
-        'status': 'Pending',
-        'events': 2,
-      },
-    ];
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final enterprises = _enterprises;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -108,7 +101,7 @@ class EnterpriseNetworkScreen extends StatelessWidget {
                 _MiniStat(
                   icon: Icons.people_rounded,
                   label: 'Students Placed',
-                  value: '160',
+                  value: '${enterprises.fold<int>(0, (s, e) => s + ((e['students'] as int?) ?? 0))}',
                   color: Colors.blue,
                   isDark: isDark,
                 ),

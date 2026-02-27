@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_theme.dart';
+import '../../services/api_service.dart';
 
 // ─── Skill Level ──────────────────────────────────────────────────────────────
 enum SkillLevel { interested, learning, competent, proficient, expert }
@@ -55,59 +56,21 @@ class StudentProfileScreen extends StatefulWidget {
 }
 
 class _StudentProfileScreenState extends State<StudentProfileScreen> {
-  // Profile state
-  String _name = 'Ahmad Hakim';
-  String _faculty = 'Faculty of Computer Science';
-  String _location = 'Kuala Lumpur, Malaysia';
-  String _email = 'ahmad.hakim@student.um.edu.my';
-  String _bio =
-      'Passionate developer and tech enthusiast. Love building products that make a difference. Currently exploring AI/ML and mobile development with Flutter.';
-  String _github = 'ahmadhakim';
-  String _linkedin = 'ahmadhakim';
-  String _joinDate = 'January 2024';
+  // Profile state (loaded from API)
+  String _name = '';
+  String _faculty = '';
+  String _location = '';
+  String _email = '';
+  String _bio = '';
+  String _github = '';
+  String _linkedin = '';
+  String _joinDate = '';
 
   // Skills
-  final List<_Skill> _skills = [
-    _Skill('React', SkillLevel.proficient),
-    _Skill('Flutter', SkillLevel.competent),
-    _Skill('Node.js', SkillLevel.learning),
-    _Skill('UI/UX Design', SkillLevel.interested),
-    _Skill('Python', SkillLevel.expert),
-    _Skill('Firebase', SkillLevel.competent),
-    _Skill('Dart', SkillLevel.competent),
-  ];
+  final List<_Skill> _skills = [];
 
   // Portfolio
-  final List<_PortfolioItem> _portfolio = [
-    _PortfolioItem(
-      id: 1,
-      title: 'E-commerce App',
-      description:
-          'A full-stack e-commerce app with real-time inventory and payment integration.',
-      tags: ['Flutter', 'Firebase', 'Stripe'],
-    ),
-    _PortfolioItem(
-      id: 2,
-      title: 'Portfolio Website',
-      description:
-          'Personal portfolio site with dark/light theme and smooth animations.',
-      tags: ['React', 'Tailwind', 'Next.js'],
-    ),
-    _PortfolioItem(
-      id: 3,
-      title: 'ML Image Classifier',
-      description:
-          'A TensorFlow-based image recognition model trained on custom datasets.',
-      tags: ['Python', 'TensorFlow', 'Flask'],
-    ),
-    _PortfolioItem(
-      id: 4,
-      title: 'Task Manager',
-      description:
-          'Cross-platform productivity app with offline sync and push notifications.',
-      tags: ['React Native', 'SQLite'],
-    ),
-  ];
+  final List<_PortfolioItem> _portfolio = [];
 
   // Dialog states
   bool _showEditProfile = false;
@@ -142,6 +105,36 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfile();
+  }
+
+  Future<void> _fetchProfile() async {
+    try {
+      final profile = await ApiService().getProfile();
+      if (profile != null && mounted) {
+        setState(() {
+          if (profile.name.isNotEmpty) _name = profile.name;
+          if (profile.email.isNotEmpty) _email = profile.email;
+          if (profile.portfolioUrl.isNotEmpty) _github = profile.portfolioUrl;
+          if (profile.matricNo.isNotEmpty) _faculty = profile.matricNo;
+          // Populate skills from tags
+          if (profile.skillTags.isNotEmpty) {
+            _skills.clear();
+            for (final tag in profile.skillTags) {
+              _skills.add(_Skill(
+                tag['name']?.toString() ?? 'Tag ${tag['tag_id']}',
+                SkillLevel.competent,
+              ));
+            }
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
   void _openEditProfile() {
     _nameCtrl.text = _name;
     _facultyCtrl.text = _faculty;
@@ -169,6 +162,14 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
           ? _linkedinCtrl.text.trim()
           : _linkedin;
       _showEditProfile = false;
+    });
+    // Push to backend
+    ApiService().patchProfile({
+      'name': _name,
+      'email': _email,
+      'portfolio_url': _github,
+    }).catchError((_) {
+      // ignore backend errors silently
     });
   }
 

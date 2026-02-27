@@ -1,11 +1,20 @@
 {
   "hosting": {
-    "site": "chinshi-bf91e",
+    "site": "kitahack-tehais",
     "public": "build/web",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "kitahack-backend",
+          "region": "us-central1"
+        }
+      }
     ]
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../main.dart';
 import '../theme/app_theme.dart';
+import '../services/auth_service.dart';
 
 class ResponsiveShell extends StatelessWidget {
   final Widget child;
@@ -223,9 +224,9 @@ class _TopBar extends StatelessWidget {
           CircleAvatar(
             radius: 16,
             backgroundColor: AppTheme.primaryColor,
-            child: const Text(
-              'A',
-              style: TextStyle(
+            child: Text(
+              (AuthService().displayName ?? 'U')[0].toUpperCase(),
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
@@ -344,9 +345,9 @@ class _SidebarContent extends StatelessWidget {
                   CircleAvatar(
                     radius: 18,
                     backgroundColor: AppTheme.primaryColor,
-                    child: const Text(
-                      'A',
-                      style: TextStyle(
+                    child: Text(
+                      (AuthService().displayName ?? 'U')[0].toUpperCase(),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
@@ -358,7 +359,7 @@ class _SidebarContent extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Ahmad Raza',
+                          AuthService().displayName ?? 'User',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
@@ -369,7 +370,7 @@ class _SidebarContent extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          'Student',
+                          AuthService().role ?? 'Student',
                           style: TextStyle(
                             fontSize: 11,
                             color: isDark

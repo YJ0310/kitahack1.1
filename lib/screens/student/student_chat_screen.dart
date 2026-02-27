@@ -2,8 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_theme.dart';
+import '../../services/api_service.dart';
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
+// ─── Data Classes ─────────────────────────────────────────────────────────────
 class _Conversation {
   final String name, lastMsg, time;
   final int unread;
@@ -29,91 +30,6 @@ class _Msg {
   });
 }
 
-final _conversations = [
-  _Conversation(
-    name: 'Project Phoenix',
-    lastMsg: 'Sarah: Sharing slides now!',
-    time: '2m',
-    unread: 2,
-    online: true,
-  ),
-  _Conversation(
-    name: 'Sarah Lee',
-    lastMsg: 'Are we meeting before Kitahack?',
-    time: '10m',
-    online: true,
-  ),
-  _Conversation(
-    name: 'John Tan',
-    lastMsg: 'Got it, see you at 3pm 👍',
-    time: '15m',
-  ),
-  _Conversation(
-    name: 'FYP Buddy Finder',
-    lastMsg: 'Ahmad joined the group',
-    time: '1h',
-    unread: 5,
-    online: true,
-  ),
-  _Conversation(
-    name: 'AI Research Circle',
-    lastMsg: 'New paper posted by Maya',
-    time: '3h',
-  ),
-];
-
-final _mockMsgs = {
-  'Project Phoenix': [
-    _Msg(
-      sender: 'Sarah Lee',
-      text: 'Hey everyone, meeting at 3pm today?',
-      isMe: false,
-      time: '10:02',
-    ),
-    _Msg(sender: 'You', text: 'Yes! I\'ll be there', isMe: true, time: '10:05'),
-    _Msg(
-      sender: 'John Tan',
-      text: 'Same here. I\'ll bring the slides.',
-      isMe: false,
-      time: '10:06',
-    ),
-    _Msg(
-      sender: 'Sarah Lee',
-      text: 'Sharing slides now!',
-      isMe: false,
-      time: '10:08',
-    ),
-  ],
-  'Sarah Lee': [
-    _Msg(
-      sender: 'Sarah Lee',
-      text: 'Are we meeting before Kitahack?',
-      isMe: false,
-      time: '09:50',
-    ),
-    _Msg(
-      sender: 'You',
-      text: 'Yeah, let\'s sync at 3pm today 👍',
-      isMe: true,
-      time: '09:52',
-    ),
-  ],
-  'John Tan': [
-    _Msg(
-      sender: 'You',
-      text: 'Hey John, you joining the 3pm call?',
-      isMe: true,
-      time: '09:40',
-    ),
-    _Msg(
-      sender: 'John Tan',
-      text: 'Got it, see you at 3pm 👍',
-      isMe: false,
-      time: '09:43',
-    ),
-  ],
-};
-
 // ─── Screen ───────────────────────────────────────────────────────────────────
 class StudentChatScreen extends StatefulWidget {
   const StudentChatScreen({super.key});
@@ -127,27 +43,76 @@ class _StudentChatScreenState extends State<StudentChatScreen> {
   final _msgCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
 
-  void _openConv(String name) {
+  // API-loaded chats
+  List<_Conversation> _apiConversations = [];
+  Map<String, String> _chatIdMap = {}; // convName → chatId
+  bool _loadingChats = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchChats();
+  }
+
+  Future<void> _fetchChats() async {
+    try {
+      final chats = await ApiService().getChats();
+      _apiConversations = chats.map((c) {
+        _chatIdMap[c.chatTitle] = c.chatId;
+        return _Conversation(
+          name: c.chatTitle.isNotEmpty ? c.chatTitle : 'Chat',
+          lastMsg: c.lastMessage,
+          time: _formatTime(c.lastUpdatedAt),
+          unread: 0,
+          online: c.status == 'Active',
+        );
+      }).toList();
+    } catch (_) {}
+    if (mounted) setState(() => _loadingChats = false);
+  }
+
+  String _formatTime(DateTime? dt) {
+    if (dt == null) return '';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    return '${diff.inDays}d';
+  }
+
+  void _openConv(String name) async {
     setState(() {
       _activeConv = name;
-      _currentMsgs
-        ..clear()
-        ..addAll(
-          _mockMsgs[name] ??
-              [
-                _Msg(
-                  sender: name[0],
-                  text: 'Hey there!',
-                  isMe: false,
-                  time: '12:00',
-                ),
-              ],
-        );
+      _currentMsgs.clear();
     });
+
+    // Load real messages from API
+    final chatId = _chatIdMap[name];
+    if (chatId != null) {
+      try {
+        final msgs = await ApiService().getMessages(chatId);
+        if (msgs.isNotEmpty && mounted) {
+          final uid = ApiService().uid;
+          setState(() {
+            _currentMsgs
+              ..clear()
+              ..addAll(msgs.map((m) => _Msg(
+                    sender: m.senderId == uid ? 'You' : m.senderId,
+                    text: m.text,
+                    isMe: m.senderId == uid,
+                    time: m.timestamp != null
+                        ? '${m.timestamp!.hour.toString().padLeft(2, '0')}:${m.timestamp!.minute.toString().padLeft(2, '0')}'
+                        : '',
+                  )));
+          });
+        }
+        await ApiService().markMessagesRead(chatId);
+      } catch (_) {}
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
 
-  void _send() {
+  void _send() async {
     final txt = _msgCtrl.text.trim();
     if (txt.isEmpty) return;
     setState(() {
@@ -157,6 +122,14 @@ class _StudentChatScreenState extends State<StudentChatScreen> {
       _msgCtrl.clear();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
+    // Try sending via API
+    final chatId = _chatIdMap[_activeConv];
+    if (chatId != null) {
+      try {
+        await ApiService().sendMessage(chatId, txt);
+      } catch (_) {}
+    }
   }
 
   void _scrollToBottom() {
@@ -278,9 +251,9 @@ class _StudentChatScreenState extends State<StudentChatScreen> {
                 // List
                 Expanded(
                   child: ListView.builder(
-                    itemCount: _conversations.length,
+                    itemCount: _apiConversations.length,
                     itemBuilder: (ctx, i) {
-                      final conv = _conversations[i];
+                      final conv = _apiConversations[i];
                       final isActive = _activeConv == conv.name;
                       return GestureDetector(
                         onTap: () => _openConv(conv.name),

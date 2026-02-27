@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
+import '../../services/api_service.dart';
 
 // ─────────────────────────────────────────────────────────
 // Data Model
@@ -21,7 +22,7 @@ class EventModel {
   final int totalSpots;
   final String organizer;
   final List<String> tags;
-  final bool isRecommended;
+  bool isRecommended;
   bool isRegistered;
 
   EventModel({
@@ -44,136 +45,12 @@ class EventModel {
   });
 }
 
-final _mockEvents = [
-  EventModel(
-    id: 1,
-    title: 'Kitahack 2026',
-    description:
-        'The biggest hackathon of the year! Build innovative solutions in 48 hours. Compete with teams from all faculties and win amazing prizes.',
-    date: 'Mar 15, 2026',
-    time: '9:00 AM – 6:00 PM',
-    location: 'Main Hall, Block A',
-    category: 'hackathon',
-    teamRequired: true,
-    teamMin: 3,
-    teamMax: 5,
-    spots: 45,
-    totalSpots: 100,
-    organizer: 'Tech Club',
-    tags: ['AI/ML', 'Web', 'Mobile'],
-    isRecommended: true,
-  ),
-  EventModel(
-    id: 2,
-    title: 'Flutter Workshop',
-    description:
-        'Learn to build beautiful cross-platform apps with Flutter. Suitable for beginner and intermediate developers.',
-    date: 'Mar 18, 2026',
-    time: '2:00 PM – 5:00 PM',
-    location: 'Lab 3, IT Building',
-    category: 'workshop',
-    teamRequired: false,
-    spots: 12,
-    totalSpots: 30,
-    organizer: 'Mobile Dev Club',
-    tags: ['Flutter', 'Mobile', 'Beginner'],
-    isRecommended: true,
-  ),
-  EventModel(
-    id: 3,
-    title: 'Networking Mixer',
-    description:
-        'Connect with industry professionals and fellow students over refreshments and meaningful conversations.',
-    date: 'Mar 22, 2026',
-    time: '6:00 PM – 9:00 PM',
-    location: 'Student Cafeteria',
-    category: 'networking',
-    teamRequired: false,
-    spots: 80,
-    totalSpots: 100,
-    organizer: 'Career Center',
-    tags: ['Networking', 'Career'],
-    isRegistered: true,
-  ),
-  EventModel(
-    id: 4,
-    title: 'AI Case Competition',
-    description:
-        'Solve real business problems using AI and machine learning in a timed case competition environment.',
-    date: 'Apr 5, 2026',
-    time: '10:00 AM – 4:00 PM',
-    location: 'Auditorium',
-    category: 'competition',
-    teamRequired: true,
-    teamMin: 2,
-    teamMax: 4,
-    spots: 20,
-    totalSpots: 50,
-    organizer: 'AI Society',
-    tags: ['AI/ML', 'Business', 'Data'],
-  ),
-  EventModel(
-    id: 5,
-    title: 'UI/UX Design Sprint',
-    description:
-        'Intensive design workshop to improve your design thinking and UX skills with industry mentors.',
-    date: 'Apr 10, 2026',
-    time: '9:00 AM – 1:00 PM',
-    location: 'Design Lab',
-    category: 'workshop',
-    teamRequired: false,
-    spots: 8,
-    totalSpots: 20,
-    organizer: 'Design Club',
-    tags: ['UI/UX', 'Design', 'Figma'],
-    isRecommended: true,
-  ),
-  EventModel(
-    id: 6,
-    title: 'Cybersecurity CTF',
-    description:
-        'Capture the Flag competition testing your knowledge of web security, cryptography, and ethical hacking.',
-    date: 'Apr 20, 2026',
-    time: '8:00 AM – 8:00 PM',
-    location: 'Lab 3, IT Building',
-    category: 'competition',
-    teamRequired: true,
-    teamMin: 2,
-    teamMax: 4,
-    spots: 15,
-    totalSpots: 40,
-    organizer: 'CyberSec Club',
-    tags: ['Security', 'CTF', 'Ethical Hacking'],
-  ),
-];
-
 const _categories = [
   {'value': 'all', 'label': 'All Events'},
   {'value': 'hackathon', 'label': 'Hackathons'},
   {'value': 'workshop', 'label': 'Workshops'},
   {'value': 'networking', 'label': 'Networking'},
   {'value': 'competition', 'label': 'Competitions'},
-];
-
-const _mockRooms = [
-  {
-    'name': 'Team Alpha',
-    'members': 2,
-    'max': 4,
-    'skills': ['React', 'Node.js'],
-  },
-  {
-    'name': 'Innovators',
-    'members': 3,
-    'max': 5,
-    'skills': ['Python', 'AI/ML'],
-  },
-  {
-    'name': 'Code Warriors',
-    'members': 1,
-    'max': 4,
-    'skills': ['Flutter', 'Firebase'],
-  },
 ];
 
 // ─────────────────────────────────────────────────────────
@@ -187,11 +64,84 @@ class StudentEventScreen extends StatefulWidget {
 }
 
 class _StudentEventScreenState extends State<StudentEventScreen> {
-  final List<EventModel> _events = _mockEvents;
+  List<EventModel> _events = [];
   String _searchQuery = '';
   String _selectedCategory = 'all';
   EventModel? _selectedEvent;
   bool _showRoomDialog = false;
+  bool _loadingEvents = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchEvents();
+  }
+
+  Future<void> _fetchEvents() async {
+    try {
+      final apiEvents = await ApiService().getEvents();
+      final converted = apiEvents.map((e) => EventModel(
+            id: e.eventId.hashCode,
+            title: e.title,
+            description: e.description,
+            date: e.dateFormatted,
+            time: e.eventDate != null
+                ? '${e.eventDate!.hour}:${e.eventDate!.minute.toString().padLeft(2, '0')}'
+                : '',
+            location: e.location,
+            category: e.type.toLowerCase(),
+            teamRequired: e.type == 'Competition',
+            spots: 50,
+            totalSpots: 100,
+            organizer: e.organizer,
+            tags: e.relatedTags.map((t) => t.toString()).toList(),
+            isRecommended: false,
+          )).toList();
+
+      // Fetch AI recommendations and mark matching events
+      try {
+        final recs = await ApiService().recommendEvents();
+        final recTitles = recs
+            .map((r) => (Map<String, dynamic>.from(r)['title'] ?? '').toString().toLowerCase())
+            .where((t) => t.isNotEmpty)
+            .toSet();
+        for (final event in converted) {
+          if (recTitles.contains(event.title.toLowerCase())) {
+            event.isRecommended = true;
+          }
+        }
+        // Also add recommended events not already in list
+        for (final r in recs) {
+          final m = Map<String, dynamic>.from(r);
+          final title = (m['title'] ?? '').toString();
+          if (title.isNotEmpty && !converted.any((e) => e.title.toLowerCase() == title.toLowerCase())) {
+            converted.add(EventModel(
+              id: title.hashCode,
+              title: title,
+              description: m['reason'] ?? m['description'] ?? 'AI recommended',
+              date: m['date'] ?? '',
+              time: '',
+              location: m['location'] ?? '',
+              category: (m['type'] ?? m['category'] ?? 'event').toString().toLowerCase(),
+              teamRequired: false,
+              spots: 50,
+              totalSpots: 100,
+              organizer: m['organizer'] ?? '',
+              tags: List<String>.from(m['tags'] ?? []),
+              isRecommended: true,
+            ));
+          }
+        }
+      } catch (_) {}
+
+      if (mounted) {
+        setState(() {
+          _events = converted;
+        });
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loadingEvents = false);
+  }
 
   List<EventModel> get _filtered {
     return _events.where((e) {
@@ -1188,6 +1138,29 @@ class _RoomDialog extends StatefulWidget {
 class _RoomDialogState extends State<_RoomDialog> {
   int? _joiningRoomIndex;
   bool _creatingNew = false;
+  List<Map<String, dynamic>> _rooms = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRooms();
+  }
+
+  Future<void> _loadRooms() async {
+    try {
+      final posts = await ApiService().getPosts();
+      if (mounted) {
+        setState(() {
+          _rooms = posts.take(5).map((p) => <String, dynamic>{
+            'name': p.title.isNotEmpty ? p.title : 'Room',
+            'members': 1,
+            'max': 4,
+            'skills': p.requirements.map((r) => 'Tag $r').toList(),
+          }).toList();
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1357,7 +1330,7 @@ class _RoomDialogState extends State<_RoomDialog> {
                           ),
                           const SizedBox(height: 12),
                           // Room List
-                          ..._mockRooms.asMap().entries.map(
+                          ..._rooms.asMap().entries.map(
                             (entry) => _RoomTile(
                               room: entry.value,
                               index: entry.key,

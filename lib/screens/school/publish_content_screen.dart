@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_theme.dart';
+import '../../services/api_service.dart';
 
 class PublishContentScreen extends StatefulWidget {
   const PublishContentScreen({super.key});
@@ -13,37 +14,64 @@ class _PublishContentScreenState extends State<PublishContentScreen> {
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   bool _showForm = false;
+  bool _loading = true;
 
-  final _published = [
-    {
-      'title': 'Kitahack 2026 Registration',
-      'type': 'Event',
-      'date': 'Feb 20, 2026',
-      'status': 'Active',
-      'reach': '3,450',
-    },
-    {
-      'title': 'Scholarship Applications Q2',
-      'type': 'Announcement',
-      'date': 'Feb 18, 2026',
-      'status': 'Active',
-      'reach': '2,100',
-    },
-    {
-      'title': 'Flutter Workshop Series',
-      'type': 'Workshop',
-      'date': 'Feb 15, 2026',
-      'status': 'Ended',
-      'reach': '890',
-    },
-    {
-      'title': 'Career Fair 2026',
-      'type': 'Event',
-      'date': 'Feb 10, 2026',
-      'status': 'Upcoming',
-      'reach': '5,200',
-    },
-  ];
+  List<Map<String, String>> _published = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPublished();
+  }
+
+  Future<void> _fetchPublished() async {
+    try {
+      final posts = await ApiService().getMyPosts();
+      _published = posts.map<Map<String, String>>((p) {
+        return {
+          'title': p.title,
+          'type': p.type,
+          'date': p.createdAt != null
+              ? '${_shortMonth(p.createdAt!.month)} ${p.createdAt!.day}, ${p.createdAt!.year}'
+              : '',
+          'status': p.status,
+          'reach': '0',
+        };
+      }).toList();
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _publishPost() async {
+    if (_titleCtrl.text.isEmpty) return;
+    setState(() => _showForm = false);
+    try {
+      await ApiService().createPost({
+        'type': _selectedType.toLowerCase(),
+        'title': _titleCtrl.text,
+        'description': _descCtrl.text,
+      });
+      _titleCtrl.clear();
+      _descCtrl.clear();
+      // Refresh the list
+      setState(() => _loading = true);
+      await _fetchPublished();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post published!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to publish: $e')),
+        );
+      }
+    }
+  }
+
+  static String _shortMonth(int m) =>
+      const ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1];
 
   Color _typeColor(String t) {
     switch (t) {
@@ -81,6 +109,9 @@ class _PublishContentScreenState extends State<PublishContentScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
@@ -399,8 +430,7 @@ class _PublishContentScreenState extends State<PublishContentScreen> {
                                   SizedBox(
                                     width: double.infinity,
                                     child: ElevatedButton.icon(
-                                      onPressed: () =>
-                                          setState(() => _showForm = false),
+                                      onPressed: _publishPost,
                                       icon: const Icon(
                                         Icons.publish_rounded,
                                         size: 16,

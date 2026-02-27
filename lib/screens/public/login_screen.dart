@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
+import '../../services/auth_service.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool _loading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +70,7 @@ class LoginScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () => _showRoleDialog(context),
+                      onPressed: _loading ? null : () => _handleGoogleSignIn(context),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).cardTheme.color,
                         foregroundColor: Theme.of(
@@ -79,18 +87,40 @@ class LoginScreen extends StatelessWidget {
                         ),
                         elevation: 0,
                       ),
-                      icon: const Icon(
-                        Icons.g_mobiledata_rounded,
-                        size: 32,
-                        color: Colors.red,
-                      ),
-                      label: const Text(
-                        'Continue with Google',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                      icon: _loading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(
+                              Icons.g_mobiledata_rounded,
+                              size: 32,
+                              color: Colors.red,
+                            ),
+                      label: Text(
+                        _loading ? 'Signing in...' : 'Continue with Google',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  // Dev mode bypass
+                  TextButton(
+                    onPressed: _loading ? null : () => _showDevDialog(context),
+                    child: Text(
+                      'Dev Mode (prototype)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.color
+                            ?.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Text(
                     'By continuing, you agree to our Terms of Service and Privacy Policy.',
                     textAlign: TextAlign.center,
@@ -116,33 +146,66 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  void _showRoleDialog(BuildContext context) {
+  Future<void> _handleGoogleSignIn(BuildContext context) async {
+    setState(() => _loading = true);
+    try {
+      await AuthService().signInWithGoogle();
+      if (!context.mounted) return;
+      _showRoleDialog(context, fromGoogle: true);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Sign-in failed: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _showRoleDialog(BuildContext context, {bool fromGoogle = false}) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select Role Prototype'),
-        content: const Text(
-          'Which portal would you like to view? (Demonstration purposes)',
-        ),
+        title: Text(fromGoogle
+            ? 'Welcome! Select your role'
+            : 'Select Role (Prototype)'),
+        content: Text(fromGoogle
+            ? 'Which portal would you like to access?'
+            : 'Which portal would you like to view? (Demonstration purposes)'),
         actions: [
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              context.go('/school');
+              AuthService().setRole('School');
+              if (!fromGoogle) {
+                await AuthService().signInDev(role: 'School');
+              }
+              if (context.mounted) context.go('/school');
             },
             child: const Text('School'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              context.go('/enterprise');
+              AuthService().setRole('Enterprise');
+              if (!fromGoogle) {
+                await AuthService().signInDev(role: 'Enterprise');
+              }
+              if (context.mounted) context.go('/enterprise');
             },
             child: const Text('Enterprise'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              context.go('/student');
+              AuthService().setRole('Student');
+              if (!fromGoogle) {
+                await AuthService().signInDev(role: 'Student');
+              }
+              if (context.mounted) context.go('/student');
             },
             child: const Text('Student'),
           ),
@@ -150,4 +213,9 @@ class LoginScreen extends StatelessWidget {
       ),
     );
   }
+
+  void _showDevDialog(BuildContext context) {
+    _showRoleDialog(context, fromGoogle: false);
+  }
 }
+

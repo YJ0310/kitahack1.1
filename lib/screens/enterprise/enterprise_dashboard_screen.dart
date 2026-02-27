@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_theme.dart';
+import '../../services/api_service.dart';
 
 void _showEnterpriseSearchDialog(BuildContext context, bool isDark) {
   showDialog(
@@ -129,31 +130,24 @@ void _showEnterpriseReportsDialog(BuildContext context, bool isDark) {
           children: [
             _buildReportRow(
               'Total Applications',
-              '2,847',
+              '0',
               Colors.purple,
               isDark,
             ),
-            _buildReportRow('Acceptance Rate', '28%', Colors.green, isDark),
+            _buildReportRow('Acceptance Rate', '0%', Colors.green, isDark),
             _buildReportRow(
               'Avg. Response Time',
-              '2.4 days',
+              'N/A',
               Colors.blue,
               isDark,
             ),
             _buildReportRow(
               'Top Skill Match',
-              'Flutter (92%)',
+              'N/A',
               Colors.orange,
               isDark,
             ),
             const SizedBox(height: 12),
-            Text(
-              'Report generated on Feb 25, 2026',
-              style: TextStyle(
-                fontSize: 11,
-                color: isDark ? Colors.white38 : Colors.black38,
-              ),
-            ),
           ],
         ),
       ),
@@ -235,15 +229,7 @@ void _showEnterpriseInviteDialog(BuildContext context, String name) {
   );
 }
 
-void _showAllCandidatesDialog(BuildContext context, bool isDark) {
-  final candidates = [
-    {'name': 'Alex Lee', 'faculty': 'IT & Business', 'match': 98},
-    {'name': 'Sarah Rahman', 'faculty': 'Computer Science', 'match': 92},
-    {'name': 'Wei Jun', 'faculty': 'Engineering', 'match': 87},
-    {'name': 'Priya Nair', 'faculty': 'Data Science', 'match': 85},
-    {'name': 'Aiman Shah', 'faculty': 'Economics', 'match': 80},
-    {'name': 'Lisa Tan', 'faculty': 'Design', 'match': 78},
-  ];
+void _showAllCandidatesDialog(BuildContext context, bool isDark, List<Map<String, dynamic>> candidates) {
   showDialog(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -273,7 +259,7 @@ void _showAllCandidatesDialog(BuildContext context, bool isDark) {
                   leading: CircleAvatar(
                     backgroundColor: Colors.purple.withValues(alpha: 0.15),
                     child: Text(
-                      (c['name'] as String)[0],
+                      ((c['name'] as String?) ?? '?').isNotEmpty ? ((c['name'] as String?) ?? '?')[0] : '?',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.purple,
@@ -281,21 +267,21 @@ void _showAllCandidatesDialog(BuildContext context, bool isDark) {
                     ),
                   ),
                   title: Text(
-                    c['name'] as String,
+                    (c['name'] as String?) ?? '',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       color: isDark ? Colors.white : AppTheme.textPrimaryColor,
                     ),
                   ),
                   subtitle: Text(
-                    c['faculty'] as String,
+                    (c['faculty'] as String?) ?? '',
                     style: TextStyle(
                       fontSize: 12,
                       color: isDark ? Colors.white54 : Colors.black45,
                     ),
                   ),
                   trailing: Text(
-                    '${c['match']}%',
+                    '${c['match'] ?? 0}%',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.green,
@@ -316,13 +302,98 @@ void _showAllCandidatesDialog(BuildContext context, bool isDark) {
   );
 }
 
-class EnterpriseDashboardScreen extends StatelessWidget {
+class EnterpriseDashboardScreen extends StatefulWidget {
   const EnterpriseDashboardScreen({super.key});
+
+  @override
+  State<EnterpriseDashboardScreen> createState() => _EnterpriseDashboardState();
+}
+
+class _EnterpriseDashboardState extends State<EnterpriseDashboardScreen> {
+  bool _loading = true;
+  String _companyName = '';
+  int _totalCandidates = 0;
+  int _invitesSent = 0;
+  int _accepted = 0;
+  int _activeEvents = 0;
+  List<Map<String, dynamic>> _pipeline = [];
+  List<Map<String, dynamic>> _activities = [];
+  List<Map<String, dynamic>> _candidates = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    final api = ApiService();
+    try {
+      final profile = await api.getProfile();
+      _companyName = profile?.name ?? '';
+    } catch (_) {}
+
+    try {
+      final candidates = await api.smartSearch('candidates for enterprise');
+      _candidates = candidates.take(6).map<Map<String, dynamic>>((c) {
+        final m = Map<String, dynamic>.from(c);
+        return {
+          'name': m['name'] ?? 'Candidate',
+          'faculty': m['faculty'] ?? m['major'] ?? '',
+          'match': m['score'] ?? m['matchPct'] ?? 80,
+          'tags': List<String>.from(m['skills'] ?? m['tags'] ?? []),
+        };
+      }).toList();
+      _totalCandidates = _candidates.length;
+    } catch (_) {}
+
+    try {
+      final matches = await api.getMyMatches();
+      _invitesSent = matches.length;
+      _accepted = matches.where((m) => m.matchStatus == 'accepted').length;
+      final screening = matches.where((m) => m.matchStatus == 'pending').length;
+      final interview = matches.where((m) => m.matchStatus == 'interview').length;
+      final technical = matches.where((m) => m.matchStatus == 'technical').length;
+      final offer = matches.where((m) => m.matchStatus == 'accepted').length;
+      _pipeline = [
+        {'name': 'Screening', 'count': screening, 'color': Colors.blue},
+        {'name': 'Interview', 'count': interview, 'color': Colors.orange},
+        {'name': 'Technical', 'count': technical, 'color': Colors.purple},
+        {'name': 'Offer', 'count': offer, 'color': Colors.green},
+      ];
+    } catch (_) {
+      _pipeline = [
+        {'name': 'Screening', 'count': 0, 'color': Colors.blue},
+        {'name': 'Interview', 'count': 0, 'color': Colors.orange},
+        {'name': 'Technical', 'count': 0, 'color': Colors.purple},
+        {'name': 'Offer', 'count': 0, 'color': Colors.green},
+      ];
+    }
+
+    try {
+      final events = await api.getEvents();
+      _activeEvents = events.length;
+      _activities = events.take(4).map<Map<String, dynamic>>((e) {
+        return {
+          'icon': Icons.event_rounded,
+          'text': e.title,
+          'time': e.dateFormatted,
+          'color': Colors.orange,
+        };
+      }).toList();
+    } catch (_) {}
+
+    if (mounted) setState(() => _loading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isWide = MediaQuery.of(context).size.width > 900;
+
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -332,7 +403,7 @@ class EnterpriseDashboardScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Welcome Banner
-            _WelcomeBanner(isDark: isDark).animate().fadeIn(duration: 500.ms),
+            _WelcomeBanner(isDark: isDark, companyName: _companyName, totalCandidates: _totalCandidates, accepted: _accepted, invitesSent: _invitesSent).animate().fadeIn(duration: 500.ms),
             const SizedBox(height: 20),
             // Stats Row
             GridView.count(
@@ -342,39 +413,11 @@ class EnterpriseDashboardScreen extends StatelessWidget {
               crossAxisSpacing: 14,
               mainAxisSpacing: 14,
               childAspectRatio: isWide ? 2.0 : 1.8,
-              children: const [
-                _StatCard(
-                  icon: Icons.people_rounded,
-                  label: 'Total Candidates',
-                  value: '2,847',
-                  change: '+12%',
-                  changeUp: true,
-                  color: Colors.purple,
-                ),
-                _StatCard(
-                  icon: Icons.send_rounded,
-                  label: 'Invites Sent',
-                  value: '156',
-                  change: '+24',
-                  changeUp: true,
-                  color: Colors.blue,
-                ),
-                _StatCard(
-                  icon: Icons.handshake_rounded,
-                  label: 'Accepted',
-                  value: '43',
-                  change: '28%',
-                  changeUp: true,
-                  color: Colors.green,
-                ),
-                _StatCard(
-                  icon: Icons.event_rounded,
-                  label: 'Active Events',
-                  value: '8',
-                  change: '',
-                  changeUp: true,
-                  color: Colors.orange,
-                ),
+              children: [
+                _StatCard(icon: Icons.people_rounded, label: 'Total Candidates', value: '$_totalCandidates', change: '', changeUp: true, color: Colors.purple),
+                _StatCard(icon: Icons.send_rounded, label: 'Invites Sent', value: '$_invitesSent', change: '', changeUp: true, color: Colors.blue),
+                _StatCard(icon: Icons.handshake_rounded, label: 'Accepted', value: '$_accepted', change: '', changeUp: true, color: Colors.green),
+                _StatCard(icon: Icons.event_rounded, label: 'Active Events', value: '$_activeEvents', change: '', changeUp: true, color: Colors.orange),
               ],
             ).animate().fadeIn(delay: 100.ms, duration: 500.ms),
             const SizedBox(height: 24),
@@ -386,12 +429,14 @@ class EnterpriseDashboardScreen extends StatelessWidget {
                       Expanded(
                         child: _PipelineSection(
                           isDark: isDark,
+                          pipeline: _pipeline,
                         ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: _RecentActivity(
                           isDark: isDark,
+                          activities: _activities,
                         ).animate().fadeIn(delay: 250.ms, duration: 500.ms),
                       ),
                     ],
@@ -400,10 +445,12 @@ class EnterpriseDashboardScreen extends StatelessWidget {
                     children: [
                       _PipelineSection(
                         isDark: isDark,
+                        pipeline: _pipeline,
                       ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
                       const SizedBox(height: 16),
                       _RecentActivity(
                         isDark: isDark,
+                        activities: _activities,
                       ).animate().fadeIn(delay: 250.ms, duration: 500.ms),
                     ],
                   ),
@@ -412,6 +459,7 @@ class EnterpriseDashboardScreen extends StatelessWidget {
             _TopCandidates(
               isDark: isDark,
               isWide: isWide,
+              candidates: _candidates,
             ).animate().fadeIn(delay: 300.ms, duration: 500.ms),
           ],
         ),
@@ -422,7 +470,11 @@ class EnterpriseDashboardScreen extends StatelessWidget {
 
 class _WelcomeBanner extends StatelessWidget {
   final bool isDark;
-  const _WelcomeBanner({required this.isDark});
+  final String companyName;
+  final int totalCandidates;
+  final int accepted;
+  final int invitesSent;
+  const _WelcomeBanner({required this.isDark, required this.companyName, required this.totalCandidates, required this.accepted, required this.invitesSent});
 
   @override
   Widget build(BuildContext context) {
@@ -445,9 +497,9 @@ class _WelcomeBanner extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Welcome back, TechCorp 👋',
-            style: TextStyle(
+          Text(
+            companyName.isNotEmpty ? 'Welcome back, $companyName 👋' : 'Welcome back 👋',
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -455,7 +507,9 @@ class _WelcomeBanner extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Your talent pipeline is growing. 12 new candidates matched this week.',
+            totalCandidates > 0
+                ? 'Your talent pipeline is growing. $totalCandidates candidates matched.'
+                : 'Your talent pipeline is ready. Search for new candidates.',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.8),
               fontSize: 14,
@@ -588,16 +642,12 @@ class _StatCard extends StatelessWidget {
 
 class _PipelineSection extends StatelessWidget {
   final bool isDark;
-  const _PipelineSection({required this.isDark});
+  final List<Map<String, dynamic>> pipeline;
+  const _PipelineSection({required this.isDark, required this.pipeline});
 
   @override
   Widget build(BuildContext context) {
-    final pipeline = [
-      {'name': 'Screening', 'count': 24, 'color': Colors.blue},
-      {'name': 'Interview', 'count': 12, 'color': Colors.orange},
-      {'name': 'Technical', 'count': 8, 'color': Colors.purple},
-      {'name': 'Offer', 'count': 3, 'color': Colors.green},
-    ];
+    final maxCount = pipeline.fold<int>(1, (m, p) => (p['count'] as int) > m ? (p['count'] as int) : m);
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -662,7 +712,7 @@ class _PipelineSection extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
-                        value: count / 30,
+                        value: maxCount > 0 ? count / maxCount : 0,
                         minHeight: 6,
                         backgroundColor: isDark
                             ? Colors.white.withValues(alpha: 0.08)
@@ -683,36 +733,11 @@ class _PipelineSection extends StatelessWidget {
 
 class _RecentActivity extends StatelessWidget {
   final bool isDark;
-  const _RecentActivity({required this.isDark});
+  final List<Map<String, dynamic>> activities;
+  const _RecentActivity({required this.isDark, required this.activities});
 
   @override
   Widget build(BuildContext context) {
-    final activities = [
-      {
-        'icon': Icons.person_add_rounded,
-        'text': 'New candidate: Sarah M.',
-        'time': '2h ago',
-        'color': Colors.blue,
-      },
-      {
-        'icon': Icons.check_circle_rounded,
-        'text': 'Alex Lee accepted invite',
-        'time': '5h ago',
-        'color': Colors.green,
-      },
-      {
-        'icon': Icons.event_rounded,
-        'text': 'Kitahack 2026 starts in 3 weeks',
-        'time': '1d ago',
-        'color': Colors.orange,
-      },
-      {
-        'icon': Icons.star_rounded,
-        'text': '3 new top matches found',
-        'time': '2d ago',
-        'color': Colors.purple,
-      },
-    ];
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -787,36 +812,11 @@ class _RecentActivity extends StatelessWidget {
 class _TopCandidates extends StatelessWidget {
   final bool isDark;
   final bool isWide;
-  const _TopCandidates({required this.isDark, required this.isWide});
+  final List<Map<String, dynamic>> candidates;
+  const _TopCandidates({required this.isDark, required this.isWide, required this.candidates});
 
   @override
   Widget build(BuildContext context) {
-    final candidates = [
-      {
-        'name': 'Alex Lee',
-        'faculty': 'IT & Business',
-        'match': 98,
-        'tags': ['Python', 'Finance', 'Data'],
-      },
-      {
-        'name': 'Sarah Rahman',
-        'faculty': 'Computer Science',
-        'match': 92,
-        'tags': ['Flutter', 'Firebase', 'UI/UX'],
-      },
-      {
-        'name': 'Wei Jun',
-        'faculty': 'Engineering',
-        'match': 87,
-        'tags': ['IoT', 'Embedded', 'C++'],
-      },
-      {
-        'name': 'Priya Nair',
-        'faculty': 'Data Science',
-        'match': 85,
-        'tags': ['ML', 'Statistics', 'R'],
-      },
-    ];
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -844,7 +844,7 @@ class _TopCandidates extends StatelessWidget {
                 ),
               ),
               GestureDetector(
-                onTap: () => _showAllCandidatesDialog(context, isDark),
+                onTap: () => _showAllCandidatesDialog(context, isDark, candidates),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -868,7 +868,7 @@ class _TopCandidates extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           ...candidates.map((c) {
-            final tags = c['tags'] as List;
+            final tags = List<String>.from(c['tags'] ?? []);
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Container(
@@ -935,7 +935,7 @@ class _TopCandidates extends StatelessWidget {
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
-                                      t as String,
+                                      t.toString(),
                                       style: const TextStyle(
                                         fontSize: 10,
                                         fontWeight: FontWeight.w600,

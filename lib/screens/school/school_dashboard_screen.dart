@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_theme.dart';
+import '../../services/api_service.dart';
 
 void _showPublishDialog(BuildContext context) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -111,17 +112,7 @@ void _showPublishDialog(BuildContext context) {
 
 void _showPartnersDialog(BuildContext context) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  final partners = [
-    {'name': 'TechCorp Malaysia', 'type': 'Enterprise', 'status': 'Active'},
-    {'name': 'FinBank Asia', 'type': 'Finance', 'status': 'Active'},
-    {
-      'name': 'GreenTech Solutions',
-      'type': 'Sustainability',
-      'status': 'Pending',
-    },
-    {'name': 'NexGen Labs', 'type': 'Research', 'status': 'Active'},
-    {'name': 'DataFlow Inc', 'type': 'Technology', 'status': 'Pending'},
-  ];
+  final partners = <Map<String, String>>[];
   showDialog(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -209,13 +200,87 @@ void _showPartnersDialog(BuildContext context) {
   );
 }
 
-class SchoolDashboardScreen extends StatelessWidget {
+class SchoolDashboardScreen extends StatefulWidget {
   const SchoolDashboardScreen({super.key});
+
+  @override
+  State<SchoolDashboardScreen> createState() => _SchoolDashboardState();
+}
+
+class _SchoolDashboardState extends State<SchoolDashboardScreen> {
+  bool _loading = true;
+  String _schoolName = '';
+  List<Map<String, dynamic>> _stats = [];
+  List<Map<String, dynamic>> _publications = [];
+  List<Map<String, dynamic>> _partners = [];
+  List<Map<String, dynamic>> _insights = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    final api = ApiService();
+    try {
+      final profile = await api.getProfile();
+      _schoolName = profile?.name ?? '';
+    } catch (_) {}
+
+    int postCount = 0;
+    try {
+      final posts = await api.getPosts();
+      postCount = posts.length;
+      _publications = posts.take(4).map<Map<String, dynamic>>((p) {
+        return {
+          'title': p.title,
+          'type': p.type,
+          'date': p.createdAt != null ? '${_shortMonth(p.createdAt!.month)} ${p.createdAt!.day}' : '',
+          'color': Colors.teal,
+        };
+      }).toList();
+    } catch (_) {}
+
+    int eventCount = 0;
+    try {
+      final events = await api.getEvents();
+      eventCount = events.length;
+    } catch (_) {}
+
+    try {
+      final insightsData = await api.getInsights();
+      _insights = insightsData.entries.take(4).map<Map<String, dynamic>>((e) {
+        return {
+          'label': e.key.toString(),
+          'value': e.value.toString(),
+          'icon': Icons.insights_rounded,
+          'color': Colors.teal,
+        };
+      }).toList();
+    } catch (_) {}
+
+    _stats = [
+      {'icon': Icons.school_rounded, 'label': 'Students', 'value': '0', 'color': Colors.teal},
+      {'icon': Icons.campaign_rounded, 'label': 'Published', 'value': '$postCount', 'color': Colors.blue},
+      {'icon': Icons.business_rounded, 'label': 'Partners', 'value': '${_partners.length}', 'color': Colors.orange},
+      {'icon': Icons.event_rounded, 'label': 'Active Events', 'value': '$eventCount', 'color': Colors.purple},
+    ];
+
+    if (mounted) setState(() => _loading = false);
+  }
+
+  static String _shortMonth(int m) =>
+      const ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1];
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isWide = MediaQuery.of(context).size.width > 900;
+
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -224,10 +289,11 @@ class SchoolDashboardScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _WelcomeBanner(isDark: isDark).animate().fadeIn(duration: 500.ms),
+            _WelcomeBanner(isDark: isDark, schoolName: _schoolName).animate().fadeIn(duration: 500.ms),
             const SizedBox(height: 20),
             _StatsRow(
               isWide: isWide,
+              stats: _stats,
             ).animate().fadeIn(delay: 100.ms, duration: 500.ms),
             const SizedBox(height: 24),
             isWide
@@ -237,12 +303,14 @@ class SchoolDashboardScreen extends StatelessWidget {
                       Expanded(
                         child: _RecentPubs(
                           isDark: isDark,
+                          publications: _publications,
                         ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: _Partners(
                           isDark: isDark,
+                          partners: _partners,
                         ).animate().fadeIn(delay: 250.ms, duration: 500.ms),
                       ),
                     ],
@@ -251,10 +319,12 @@ class SchoolDashboardScreen extends StatelessWidget {
                     children: [
                       _RecentPubs(
                         isDark: isDark,
+                        publications: _publications,
                       ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
                       const SizedBox(height: 16),
                       _Partners(
                         isDark: isDark,
+                        partners: _partners,
                       ).animate().fadeIn(delay: 250.ms, duration: 500.ms),
                     ],
                   ),
@@ -262,6 +332,7 @@ class SchoolDashboardScreen extends StatelessWidget {
             _Insights(
               isDark: isDark,
               isWide: isWide,
+              insights: _insights,
             ).animate().fadeIn(delay: 300.ms, duration: 500.ms),
           ],
         ),
@@ -272,7 +343,8 @@ class SchoolDashboardScreen extends StatelessWidget {
 
 class _WelcomeBanner extends StatelessWidget {
   final bool isDark;
-  const _WelcomeBanner({required this.isDark});
+  final String schoolName;
+  const _WelcomeBanner({required this.isDark, required this.schoolName});
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -304,7 +376,9 @@ class _WelcomeBanner extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Welcome back, University of Malaya. Your network is thriving.',
+            schoolName.isNotEmpty
+                ? 'Welcome back, $schoolName. Your network is thriving.'
+                : 'Welcome back. Your network is thriving.',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.8),
               fontSize: 14,
@@ -349,36 +423,11 @@ class _WelcomeBanner extends StatelessWidget {
 
 class _StatsRow extends StatelessWidget {
   final bool isWide;
-  const _StatsRow({required this.isWide});
+  final List<Map<String, dynamic>> stats;
+  const _StatsRow({required this.isWide, required this.stats});
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final stats = [
-      {
-        'icon': Icons.school_rounded,
-        'label': 'Students',
-        'value': '12,450',
-        'color': Colors.teal,
-      },
-      {
-        'icon': Icons.campaign_rounded,
-        'label': 'Published',
-        'value': '86',
-        'color': Colors.blue,
-      },
-      {
-        'icon': Icons.business_rounded,
-        'label': 'Partners',
-        'value': '24',
-        'color': Colors.orange,
-      },
-      {
-        'icon': Icons.event_rounded,
-        'label': 'Active Events',
-        'value': '15',
-        'color': Colors.purple,
-      },
-    ];
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -446,35 +495,11 @@ class _StatsRow extends StatelessWidget {
 
 class _RecentPubs extends StatelessWidget {
   final bool isDark;
-  const _RecentPubs({required this.isDark});
+  final List<Map<String, dynamic>> publications;
+  const _RecentPubs({required this.isDark, required this.publications});
   @override
   Widget build(BuildContext context) {
-    final posts = [
-      {
-        'title': 'Kitahack 2026 Registration Open!',
-        'type': 'Event',
-        'date': 'Feb 20',
-        'color': Colors.orange,
-      },
-      {
-        'title': 'Scholarship Applications Q2',
-        'type': 'Announcement',
-        'date': 'Feb 18',
-        'color': Colors.blue,
-      },
-      {
-        'title': 'Flutter Workshop Series',
-        'type': 'Workshop',
-        'date': 'Feb 15',
-        'color': Colors.purple,
-      },
-      {
-        'title': 'Career Fair 2026',
-        'type': 'Event',
-        'date': 'Feb 10',
-        'color': Colors.green,
-      },
-    ];
+    final posts = publications;
     return _Card(
       isDark: isDark,
       title: 'Recent Publications',
@@ -534,15 +559,10 @@ class _RecentPubs extends StatelessWidget {
 
 class _Partners extends StatelessWidget {
   final bool isDark;
-  const _Partners({required this.isDark});
+  final List<Map<String, dynamic>> partners;
+  const _Partners({required this.isDark, required this.partners});
   @override
   Widget build(BuildContext context) {
-    final partners = [
-      {'name': 'TechCorp Malaysia', 'type': 'Technology', 'students': 42},
-      {'name': 'FinanceHub', 'type': 'Finance', 'students': 28},
-      {'name': 'GreenTech Solutions', 'type': 'Sustainability', 'students': 15},
-      {'name': 'MedTech Asia', 'type': 'Healthcare', 'students': 22},
-    ];
     return _Card(
       isDark: isDark,
       title: 'Enterprise Partners',
@@ -614,35 +634,11 @@ class _Partners extends StatelessWidget {
 class _Insights extends StatelessWidget {
   final bool isDark;
   final bool isWide;
-  const _Insights({required this.isDark, required this.isWide});
+  final List<Map<String, dynamic>> insights;
+  const _Insights({required this.isDark, required this.isWide, required this.insights});
   @override
   Widget build(BuildContext context) {
-    final items = [
-      {
-        'label': 'Avg. GPA',
-        'value': '3.52',
-        'icon': Icons.school_rounded,
-        'color': Colors.green,
-      },
-      {
-        'label': 'Active in Events',
-        'value': '68%',
-        'icon': Icons.event_rounded,
-        'color': Colors.orange,
-      },
-      {
-        'label': 'With Teams',
-        'value': '1,230',
-        'icon': Icons.groups_rounded,
-        'color': Colors.blue,
-      },
-      {
-        'label': 'Skills Tagged',
-        'value': '45,200',
-        'icon': Icons.tag_rounded,
-        'color': Colors.purple,
-      },
-    ];
+    final items = insights;
     return _Card(
       isDark: isDark,
       title: 'Student Insights',

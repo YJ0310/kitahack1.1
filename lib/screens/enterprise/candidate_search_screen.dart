@@ -1,51 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_theme.dart';
-
-final _mockCandidates = [
-  {
-    'name': 'Alex Lee',
-    'faculty': 'IT & Business',
-    'match': 98,
-    'tags': ['Python', 'Financial Modeling', 'Data Viz'],
-    'gpa': '3.85',
-  },
-  {
-    'name': 'Sarah Rahman',
-    'faculty': 'Computer Science',
-    'match': 92,
-    'tags': ['Flutter', 'Firebase', 'UI/UX'],
-    'gpa': '3.72',
-  },
-  {
-    'name': 'Wei Jun',
-    'faculty': 'Electrical Engineering',
-    'match': 87,
-    'tags': ['IoT', 'Embedded Systems', 'C++'],
-    'gpa': '3.90',
-  },
-  {
-    'name': 'Priya Nair',
-    'faculty': 'Data Science',
-    'match': 85,
-    'tags': ['Machine Learning', 'Statistics', 'R'],
-    'gpa': '3.68',
-  },
-  {
-    'name': 'Ahmad Hakim',
-    'faculty': 'Computer Science',
-    'match': 82,
-    'tags': ['React', 'Node.js', 'MongoDB'],
-    'gpa': '3.55',
-  },
-  {
-    'name': 'Lin Mei',
-    'faculty': 'Software Engineering',
-    'match': 79,
-    'tags': ['Java', 'Spring Boot', 'AWS'],
-    'gpa': '3.60',
-  },
-];
+import '../../services/api_service.dart';
 
 class CandidateSearchScreen extends StatefulWidget {
   const CandidateSearchScreen({super.key});
@@ -56,9 +12,34 @@ class CandidateSearchScreen extends StatefulWidget {
 class _CandidateSearchScreenState extends State<CandidateSearchScreen> {
   String _query = '';
   String _filter = 'all';
+  List<Map<String, dynamic>> _candidates = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCandidates();
+  }
+
+  Future<void> _fetchCandidates() async {
+    try {
+      final results = await ApiService().smartSearch('all candidates');
+      _candidates = results.map<Map<String, dynamic>>((c) {
+        final m = Map<String, dynamic>.from(c);
+        return {
+          'name': m['name'] ?? 'Candidate',
+          'faculty': m['faculty'] ?? m['major'] ?? '',
+          'match': m['score'] ?? m['matchPct'] ?? 80,
+          'tags': List<String>.from(m['skills'] ?? m['tags'] ?? []),
+          'gpa': m['gpa'] ?? 'N/A',
+        };
+      }).toList();
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
 
   List<Map<String, dynamic>> get _filtered {
-    return _mockCandidates.where((c) {
+    return _candidates.where((c) {
       final matchQ =
           _query.isEmpty ||
           (c['name'] as String).toLowerCase().contains(_query.toLowerCase()) ||
@@ -77,6 +58,9 @@ class _CandidateSearchScreenState extends State<CandidateSearchScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(

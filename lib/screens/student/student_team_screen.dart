@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_theme.dart';
+import '../../services/api_service.dart';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 class _Member {
@@ -48,117 +49,6 @@ class _CollabGroup {
   });
 }
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-const _myMembers = [
-  _Member(
-    name: 'Ahmad Raza',
-    faculty: 'Computer Science',
-    skills: ['Flutter', 'Firebase'],
-    isLeader: true,
-    isOnline: true,
-  ),
-  _Member(
-    name: 'Sarah Lee',
-    faculty: 'UI/UX Design',
-    skills: ['Figma', 'React'],
-    isOnline: true,
-  ),
-  _Member(name: 'John Tan', faculty: 'Data Science', skills: ['Python', 'ML']),
-];
-
-const _hackRooms = [
-  _Room(
-    id: 'r1',
-    name: 'Team Alpha',
-    event: 'Kitahack 2026',
-    eventDate: 'Mar 15',
-    hostName: 'Wei Ming',
-    skills: ['React', 'Node.js'],
-    members: 2,
-    maxMembers: 4,
-    matchPct: 92,
-  ),
-  _Room(
-    id: 'r2',
-    name: 'Innovators',
-    event: 'AI Case Competition',
-    eventDate: 'Mar 20',
-    hostName: 'Priya S.',
-    skills: ['Python', 'AI/ML'],
-    members: 3,
-    maxMembers: 4,
-    matchPct: 87,
-  ),
-  _Room(
-    id: 'r3',
-    name: 'Code Warriors',
-    event: 'Kitahack 2026',
-    eventDate: 'Mar 15',
-    hostName: 'Ali Hassan',
-    skills: ['Flutter', 'Firebase'],
-    members: 1,
-    maxMembers: 4,
-    matchPct: 85,
-  ),
-  _Room(
-    id: 'r4',
-    name: 'DataMinds',
-    event: 'Data Challenge',
-    eventDate: 'Mar 22',
-    hostName: 'Maya C.',
-    skills: ['Pandas', 'Tableau'],
-    members: 3,
-    maxMembers: 4,
-    matchPct: 78,
-  ),
-  _Room(
-    id: 'r5',
-    name: 'FullStack Squad',
-    event: 'Kitahack 2026',
-    eventDate: 'Mar 15',
-    hostName: 'Kevin L.',
-    skills: ['Vue', 'Django'],
-    members: 2,
-    maxMembers: 4,
-    matchPct: 74,
-  ),
-];
-
-const _collabGroups = [
-  _CollabGroup(
-    name: 'FYP Buddy Finder',
-    desc: 'Final year project partners',
-    description:
-        'Find the perfect partner for your final year project. Connect with students across faculties.',
-    type: 'Project',
-    count: 12,
-  ),
-  _CollabGroup(
-    name: 'AI Research Circle',
-    desc: 'Co-author papers & share research',
-    description:
-        'Co-author papers, share datasets, and collaborate on cutting-edge AI research.',
-    type: 'Research',
-    count: 8,
-  ),
-  _CollabGroup(
-    name: 'Side Project Squad',
-    desc: 'Weekend builders, all skills',
-    description:
-        'Weekend builders of all skill levels. Ship something cool together.',
-    type: 'Collab',
-    count: 23,
-  ),
-  _CollabGroup(
-    name: 'UM LeetCode Club',
-    desc: 'Daily coding challenges together',
-    description:
-        'Tackle daily coding challenges together and ace your technical interviews.',
-    type: 'Study',
-    count: 31,
-  ),
-];
-
 // ─── Screen ───────────────────────────────────────────────────────────────────
 class StudentTeamScreen extends StatefulWidget {
   const StudentTeamScreen({super.key});
@@ -169,7 +59,7 @@ class StudentTeamScreen extends StatefulWidget {
 class _State extends State<StudentTeamScreen> {
   int _step = 1;
   int _teamStep = 1; // finalize sub-steps
-  bool _inRoom = true;
+  bool _inRoom = false;
 
   // Step 1 expand
   bool _showDetails = false;
@@ -186,6 +76,105 @@ class _State extends State<StudentTeamScreen> {
   bool _copied = false;
   final _codeCtrl = TextEditingController();
 
+  // API-loaded data
+  List<_Room> _rooms = [];
+  List<_Member> _members = [];
+  List<_CollabGroup> _collabGroups = [];
+  List<Map<String, dynamic>> _aiCandidates = [];
+  bool _loadingTeam = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTeamData();
+  }
+
+  Future<void> _fetchTeamData() async {
+    final api = ApiService();
+    try {
+      // Fetch open posts as "rooms"
+      final posts = await api.getPosts();
+      if (posts.isNotEmpty) {
+        _rooms = posts.take(5).toList().asMap().entries.map((entry) {
+          final p = entry.value;
+          return _Room(
+            id: p.postId,
+            name: p.title.isNotEmpty ? p.title : 'Room ${entry.key + 1}',
+            event: p.type,
+            eventDate: p.createdAt != null
+                ? '${_shortMonth(p.createdAt!.month)} ${p.createdAt!.day}'
+                : '',
+            hostName: 'User ${p.creatorId.substring(0, 6)}',
+            skills: p.requirements.map((r) => 'Tag $r').toList(),
+            members: 1,
+            maxMembers: 4,
+            matchPct: 80 + (entry.key * 3) % 15,
+          );
+        }).toList();
+      }
+    } catch (_) {
+      // keep mock rooms
+    }
+
+    try {
+      // Smart search for candidates using AI
+      final candidates = await api.smartSearch('team members for hackathon');
+      if (candidates.isNotEmpty) {
+        _members = candidates.take(3).map<_Member>((c) {
+          final m = Map<String, dynamic>.from(c);
+          return _Member(
+            name: m['name'] ?? 'Candidate',
+            faculty: m['faculty'] ?? m['major'] ?? 'Unknown',
+            skills: List<String>.from(m['skills'] ?? m['tags'] ?? []),
+            isLeader: false,
+            isOnline: true,
+          );
+        }).toList();
+      }
+    } catch (_) {}
+
+    try {
+      final posts = await api.getPosts();
+      _collabGroups = posts.take(4).toList().asMap().entries.map((e) {
+        final p = e.value;
+        final types = ['Project', 'Research', 'Collab', 'Study'];
+        return _CollabGroup(
+          name: p.title.isNotEmpty ? p.title : 'Group ${e.key + 1}',
+          desc: p.description.length > 40 ? '${p.description.substring(0, 40)}...' : p.description,
+          description: p.description,
+          type: types[e.key % types.length],
+          count: p.requirements.length + 1,
+        );
+      }).toList();
+    } catch (_) {}
+
+    // Fetch AI-matched candidates for the first room
+    try {
+      if (_rooms.isNotEmpty) {
+        final result = await api.findCandidates(_rooms.first.id);
+        final cands = result['candidates'] ?? result['matches'] ?? [];
+        _aiCandidates = List<Map<String, dynamic>>.from(
+          (cands as List).take(5).map((c) => Map<String, dynamic>.from(c)),
+        );
+      }
+      if (_aiCandidates.isEmpty) {
+        final candidates = await api.smartSearch('potential team members');
+        _aiCandidates = candidates.take(5).map<Map<String, dynamic>>((c) {
+          final m = Map<String, dynamic>.from(c);
+          return {
+            'name': m['name'] ?? 'Candidate',
+            'score': ((m['score'] ?? m['matchScore'] ?? 0.8) * 100).toInt(),
+          };
+        }).toList();
+      }
+    } catch (_) {}
+
+    if (mounted) setState(() => _loadingTeam = false);
+  }
+
+  static String _shortMonth(int m) =>
+      const ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1];
+
   @override
   void dispose() {
     _codeCtrl.dispose();
@@ -200,7 +189,7 @@ class _State extends State<StudentTeamScreen> {
   }
 
   List<_Room> get _filtered {
-    final src = _showMore ? _hackRooms : _hackRooms.take(3).toList();
+    final src = _showMore ? _rooms : _rooms.take(3).toList();
     if (_filter == 'high-match')
       return src.where((r) => r.matchPct >= 85).toList();
     if (_filter == 'available')
@@ -333,7 +322,7 @@ class _State extends State<StudentTeamScreen> {
                         Row(
                           children: [
                             Text(
-                              'Project Phoenix Room',
+                              _rooms.isNotEmpty ? _rooms.first.name : 'My Room',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -354,14 +343,14 @@ class _State extends State<StudentTeamScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              'Kitahack 2026 · Mar 15',
+                              _rooms.isNotEmpty ? '${_rooms.first.event} · ${_rooms.first.eventDate}' : '',
                               style: TextStyle(fontSize: 12, color: sc),
                             ),
                             const SizedBox(width: 12),
                             Icon(Icons.group_rounded, size: 13, color: sc),
                             const SizedBox(width: 4),
                             Text(
-                              '3/4 members',
+                              '${_members.length}/${_rooms.isNotEmpty ? _rooms.first.maxMembers : 4} members',
                               style: TextStyle(fontSize: 12, color: sc),
                             ),
                           ],
@@ -381,26 +370,28 @@ class _State extends State<StudentTeamScreen> {
               // Skills
               Wrap(
                 spacing: 6,
-                children: [
-                  'Flutter',
-                  'Firebase',
-                  'Python',
-                ].map((s) => _SkillBadge(s, isDark)).toList(),
+                children: (_rooms.isNotEmpty ? _rooms.first.skills : <String>[])
+                    .map((s) => _SkillBadge(s, isDark)).toList(),
               ),
               const SizedBox(height: 14),
               // Stacked avatars
               Row(
                 children: [
                   SizedBox(
-                    width: 80,
+                    width: 20.0 + (_members.length.clamp(0, 3) * 20),
                     height: 36,
                     child: Stack(
-                      children: [_ava('A', 0), _ava('S', 20), _ava('J', 40)],
+                      children: _members.take(3).toList().asMap().entries.map((e) =>
+                        _ava(e.value.name[0], e.key * 20.0)).toList(),
                     ),
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    'Ahmad, Sarah and 1 more',
+                    _members.isNotEmpty
+                        ? _members.length <= 2
+                            ? _members.map((m) => m.name.split(' ').first).join(' and ')
+                            : '${_members.take(2).map((m) => m.name.split(' ').first).join(', ')} and ${_members.length - 2} more'
+                        : 'No members yet',
                     style: TextStyle(fontSize: 13, color: sc),
                   ),
                 ],
@@ -507,7 +498,7 @@ class _State extends State<StudentTeamScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                ..._myMembers.map(
+                ..._members.map(
                   (m) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Container(
@@ -614,7 +605,7 @@ class _State extends State<StudentTeamScreen> {
                             ),
                           ),
                         ),
-                        _Chip('3 available', AppTheme.accentPurple),
+                        _Chip('${_aiCandidates.length} available', AppTheme.accentPurple),
                         const SizedBox(width: 4),
                         Icon(
                           _showAiPool
@@ -629,17 +620,17 @@ class _State extends State<StudentTeamScreen> {
                 ),
                 if (_showAiPool) ...[
                   const SizedBox(height: 10),
-                  _AiCandidateRow(
-                    name: 'Lim Wei Chen',
-                    pct: 90,
+                  ..._aiCandidates.map((c) => _AiCandidateRow(
+                    name: c['name'] ?? 'Candidate',
+                    pct: c['score'] ?? c['matchScore'] ?? 80,
                     isDark: isDark,
-                  ),
-                  _AiCandidateRow(
-                    name: 'Fatimah Ahmad',
-                    pct: 86,
-                    isDark: isDark,
-                  ),
-                  _AiCandidateRow(name: 'Raj Kumar', pct: 82, isDark: isDark),
+                  )),
+                  if (_aiCandidates.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text('No AI candidates found yet.',
+                          style: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : Colors.black38)),
+                    ),
                 ],
               ],
               // Actions
@@ -736,7 +727,7 @@ class _State extends State<StudentTeamScreen> {
         ),
         const SizedBox(height: 16),
         // AI insight banner
-        _AiInsightBanner(isDark: isDark, roomCount: _hackRooms.length),
+        _AiInsightBanner(isDark: isDark, roomCount: _rooms.length),
         const SizedBox(height: 16),
         // Filter chips
         Row(
@@ -805,7 +796,7 @@ class _State extends State<StudentTeamScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            _Chip('${_hackRooms.length} found', AppTheme.accentPurple),
+            _Chip('${_rooms.length} found', AppTheme.accentPurple),
           ],
         ),
         const SizedBox(height: 12),
@@ -1025,7 +1016,7 @@ class _State extends State<StudentTeamScreen> {
           ),
         ),
         // Show more
-        if (_hackRooms.length > 3)
+        if (_rooms.length > 3)
           GestureDetector(
             onTap: () => setState(() => _showMore = !_showMore),
             child: Row(
@@ -1041,7 +1032,7 @@ class _State extends State<StudentTeamScreen> {
                 Text(
                   _showMore
                       ? 'Show less'
-                      : 'Show ${_hackRooms.length - 3} more rooms',
+                      : 'Show ${_rooms.length - 3} more rooms',
                   style: const TextStyle(
                     fontSize: 13,
                     color: AppTheme.primaryColor,
@@ -1310,7 +1301,7 @@ class _State extends State<StudentTeamScreen> {
                 const Divider(height: 1, thickness: 0.5),
                 const SizedBox(height: 14),
                 Text(
-                  'Team Members (${_myMembers.length}/4)',
+                  'Team Members (${_members.length}/4)',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -1318,7 +1309,7 @@ class _State extends State<StudentTeamScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                ..._myMembers.asMap().entries.map((e) {
+                ..._members.asMap().entries.map((e) {
                   final m = e.value;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -1762,7 +1753,7 @@ class _State extends State<StudentTeamScreen> {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              ..._myMembers.asMap().entries.map(
+              ..._members.asMap().entries.map(
                 (e) => Positioned(
                   left:
                       (MediaQuery.of(context).size.width / 2) -
@@ -1820,23 +1811,29 @@ class _State extends State<StudentTeamScreen> {
     final nameCtrl = TextEditingController();
     final eventCtrl = TextEditingController();
     final tagCtrl = TextEditingController();
+    final aiPromptCtrl = TextEditingController();
     final List<String> selectedTags = [];
     String selectedEvent = '';
+    List<String> suggestedEvents = [];
+    List<String> suggestedSkills = [];
+    bool aiLoading = false;
+    bool creating = false;
 
-    const suggestedEvents = [
-      'KitaHack 2026',
-      'Google Cloud Jam',
-      'AppDev Challenge',
-      'Analytics Summit',
-    ];
-    const suggestedSkills = [
-      'AI/ML',
-      'Web Dev',
-      'Mobile',
-      'Backend',
-      'UI/UX',
-      'Data Science',
-    ];
+    // Fetch real events and tags from DB
+    Future<void> loadSuggestions(StateSetter setDlgState) async {
+      try {
+        final events = await ApiService().getEvents();
+        setDlgState(() {
+          suggestedEvents = events.take(6).map((e) => e.title).toList();
+        });
+      } catch (_) {}
+      try {
+        final tags = await ApiService().getTags();
+        setDlgState(() {
+          suggestedSkills = tags.take(8).map((t) => t.name).toList();
+        });
+      } catch (_) {}
+    }
 
     showDialog(
       context: context,
@@ -1844,7 +1841,12 @@ class _State extends State<StudentTeamScreen> {
         final tc = isDark ? Colors.white : const Color(0xFF0F172A);
         final sc = isDark ? Colors.white60 : const Color(0xFF64748B);
         return StatefulBuilder(
-          builder: (ctx, setDlgState) => AlertDialog(
+          builder: (ctx, setDlgState) {
+            // Load suggestions on first build
+            if (suggestedEvents.isEmpty && suggestedSkills.isEmpty) {
+              loadSuggestions(setDlgState);
+            }
+            return AlertDialog(
             backgroundColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
@@ -1862,6 +1864,113 @@ class _State extends State<StudentTeamScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── AI Assist ──
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF8B5CF6).withValues(alpha: 0.08),
+                          const Color(0xFFEC4899).withValues(alpha: 0.08),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.auto_awesome_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                            const SizedBox(width: 6),
+                            Text('Ask AI to create your room',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: tc)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: aiPromptCtrl,
+                          style: TextStyle(fontSize: 13, color: tc),
+                          maxLines: 2,
+                          decoration: InputDecoration(
+                            hintText: 'e.g. "I need a team for KitaHack 2026. We need Flutter, AI/ML, and backend skills"',
+                            hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black26, fontSize: 11),
+                            filled: true,
+                            fillColor: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.all(10),
+                            isDense: true,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: aiLoading ? null : () async {
+                            final prompt = aiPromptCtrl.text.trim();
+                            if (prompt.isEmpty) return;
+                            setDlgState(() => aiLoading = true);
+                            try {
+                              final post = await ApiService().createPostFromDescription(prompt);
+                              setDlgState(() {
+                                nameCtrl.text = post.title;
+                                eventCtrl.text = post.type;
+                                selectedEvent = post.type;
+                                selectedTags.clear();
+                                selectedTags.addAll(post.requirements.map((r) => r.toString()));
+                                aiLoading = false;
+                              });
+                              // Show snackbar
+                              if (mounted) {
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  SnackBar(
+                                    content: const Row(
+                                      children: [
+                                        Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 16),
+                                        SizedBox(width: 8),
+                                        Text('AI generated your room details!'),
+                                      ],
+                                    ),
+                                    backgroundColor: const Color(0xFF8B5CF6),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              setDlgState(() => aiLoading = false);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (aiLoading)
+                                  const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                else
+                                  const Icon(Icons.auto_awesome_rounded, size: 14, color: Colors.white),
+                                const SizedBox(width: 6),
+                                Text(aiLoading ? 'Generating...' : 'Generate with AI ✨',
+                                  style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   // Room name
                   TextField(
                     controller: nameCtrl,
@@ -1919,7 +2028,8 @@ class _State extends State<StudentTeamScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // Suggested events
+                  // Suggested events (from DB)
+                  if (suggestedEvents.isNotEmpty)
                   Wrap(
                     spacing: 6,
                     runSpacing: 4,
@@ -2103,7 +2213,8 @@ class _State extends State<StudentTeamScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // Suggested skill chips
+                  // Suggested skill chips (from DB)
+                  if (suggestedSkills.isNotEmpty) ...[
                   Text('Suggested:', style: TextStyle(fontSize: 11, color: sc)),
                   const SizedBox(height: 4),
                   Wrap(
@@ -2134,6 +2245,7 @@ class _State extends State<StudentTeamScreen> {
                         )
                         .toList(),
                   ),
+                  ],
                 ],
               ),
             ),
@@ -2143,9 +2255,45 @@ class _State extends State<StudentTeamScreen> {
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  setState(() => _inRoom = true);
+                onPressed: creating ? null : () async {
+                  final name = nameCtrl.text.trim();
+                  if (name.isEmpty) return;
+                  setDlgState(() => creating = true);
+                  try {
+                    final post = await ApiService().createPost({
+                      'title': name,
+                      'description': 'Room for ${eventCtrl.text.trim().isNotEmpty ? eventCtrl.text.trim() : 'hackathon collaboration'}',
+                      'type': eventCtrl.text.trim().isNotEmpty ? eventCtrl.text.trim() : 'General',
+                      'requirements': selectedTags,
+                      'max_members': 4,
+                    });
+                    Navigator.pop(ctx);
+                    // Refresh and enter room
+                    await _fetchTeamData();
+                    setState(() => _inRoom = true);
+                    if (mounted) {
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        SnackBar(
+                          content: Row(children: [
+                            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
+                            const SizedBox(width: 8),
+                            Text('Room "${post.title}" created!'),
+                          ]),
+                          backgroundColor: Colors.green,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    setDlgState(() => creating = false);
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to create room: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
@@ -2158,7 +2306,8 @@ class _State extends State<StudentTeamScreen> {
                 child: const Text('Create Room'),
               ),
             ],
-          ),
+          );
+          },
         );
       },
     );
