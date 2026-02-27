@@ -15,8 +15,8 @@ final authService = AuthService();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Prevent google_fonts from making HTTP requests — use bundled/system fonts only
-  GoogleFonts.config.allowRuntimeFetching = false;
+  // Allow google_fonts to fetch fonts at runtime (web deployment)
+  GoogleFonts.config.allowRuntimeFetching = true;
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,

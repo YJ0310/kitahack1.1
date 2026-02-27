@@ -660,17 +660,26 @@ class _UploadButtonState extends State<_UploadButton> {
   bool _uploading = false;
 
   Future<void> _pickAndUpload() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'webp'],
-      withData: true,
-    );
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.first;
-    if (file.bytes == null) return;
-
-    setState(() => _uploading = true);
     try {
+      final result = await FilePicker.platform.pickFiles(
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      if (file.bytes == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not read file data. Please try again.'),
+              backgroundColor: Colors.orangeAccent,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+
+      setState(() => _uploading = true);
       final mimeType = _guessMime(file.extension ?? '');
       await ApiService().uploadFile(
         file.bytes!,
