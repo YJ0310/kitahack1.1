@@ -311,6 +311,16 @@ class ApiService {
     return Map<String, dynamic>.from(data);
   }
 
+  /// Execute an AI insight action (join_event, apply_to_post, add_tags, etc.)
+  Future<Map<String, dynamic>> executeInsightAction(
+      String actionType, Map<String, dynamic> actionData) async {
+    final data = await _post('/insights/execute-action', {
+      'action_type': actionType,
+      'action_data': actionData,
+    });
+    return Map<String, dynamic>.from(data);
+  }
+
   // ─── Storage / Upload ─────────────────────────────────────────────────────
 
   /// Upload a file to Firebase Storage via the backend.

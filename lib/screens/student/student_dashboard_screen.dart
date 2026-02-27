@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
+import '../../models/models.dart';
 
 // ─── Temp Chat Data ───────────────────────────────────────────────────────────
 class _ChatMsg {
@@ -93,123 +94,128 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     _fetchFromBackend();
   }
 
-  /// Fetch live data from backend.
+  /// Fetch live data from backend — all calls run in parallel for speed.
   Future<void> _fetchFromBackend() async {
     final api = ApiService();
-    try {
-      final insightData = await api.getInsights();
-      if (insightData['insights'] != null) {
-        final raw = insightData['insights'];
-        if (raw is List && raw.isNotEmpty) {
-          _aiInsights = raw.map<Map<String, dynamic>>((i) {
-            final type = i['type'] ?? '';
-            IconData icon;
-            Color color;
-            switch (type) {
-              case 'skill_tip':
-                icon = Icons.lightbulb_rounded;
-                color = const Color(0xFF8B5CF6);
-                break;
-              case 'event_alert':
-                icon = Icons.event_rounded;
-                color = AppTheme.primaryColor;
-                break;
-              case 'team_request':
-                icon = Icons.groups_rounded;
-                color = AppTheme.secondaryColor;
-                break;
-              case 'enterprise_match':
-                icon = Icons.business_rounded;
-                color = const Color(0xFFEC4899);
-                break;
-              case 'connection':
-                icon = Icons.people_rounded;
-                color = Colors.teal;
-                break;
-              default:
-                icon = Icons.auto_awesome_rounded;
-                color = AppTheme.primaryColor;
-            }
-            return {
-              'title': i['title'] ?? 'AI Insight',
-              'content': i['content'] ?? i.toString(),
-              'icon': icon,
-              'color': color,
-              'actionText': i['action_text'] ?? 'View',
-              'type': type,
-              'priority': i['priority'] ?? 'medium',
-            };
-          }).toList();
+
+    // Fire ALL five requests in parallel instead of sequentially
+    late Map<String, dynamic> insightData;
+    late List<EventModel> events;
+    late List<MatchModel> matches;
+    late List<dynamic> candidates;
+    late List<dynamic> recs;
+
+    await Future.wait([
+      api.getInsights().then((v) => insightData = v).catchError((_) => insightData = {}),
+      api.getEvents(upcoming: true).then((v) => events = v).catchError((_) => events = <EventModel>[]),
+      api.getMyMatches().then((v) => matches = v).catchError((_) => matches = <MatchModel>[]),
+      api.smartSearch('suggested connections').then((v) => candidates = v).catchError((_) => candidates = []),
+      api.recommendEvents().then((v) => recs = v).catchError((_) => recs = []),
+    ]);
+
+    // ── 0. Insights ──
+    final raw = insightData['insights'];
+    if (raw is List && raw.isNotEmpty) {
+      _aiInsights = raw.map<Map<String, dynamic>>((i) {
+        final type = i['type'] ?? '';
+        IconData icon;
+        Color color;
+        switch (type) {
+          case 'skill_tip':
+            icon = Icons.lightbulb_rounded;
+            color = const Color(0xFF8B5CF6);
+            break;
+          case 'event_alert':
+            icon = Icons.event_rounded;
+            color = AppTheme.primaryColor;
+            break;
+          case 'team_request':
+            icon = Icons.groups_rounded;
+            color = AppTheme.secondaryColor;
+            break;
+          case 'enterprise_match':
+            icon = Icons.business_rounded;
+            color = const Color(0xFFEC4899);
+            break;
+          case 'connection':
+            icon = Icons.people_rounded;
+            color = Colors.teal;
+            break;
+          default:
+            icon = Icons.auto_awesome_rounded;
+            color = AppTheme.primaryColor;
         }
-      }
-    } catch (_) {}
+        return {
+          'title': i['title'] ?? 'AI Insight',
+          'content': i['content'] ?? i.toString(),
+          'icon': icon,
+          'color': color,
+          'actionText': i['action_text'] ?? 'View',
+          'type': type,
+          'priority': i['priority'] ?? 'medium',
+          'action_type': i['action_type'] ?? '',
+          'action_data': i['action_data'] is Map ? Map<String, dynamic>.from(i['action_data']) : <String, dynamic>{},
+        };
+      }).toList();
+    }
 
-    try {
-      final events = await api.getEvents(upcoming: true);
-      _upcomingEvents
-        ..clear()
-        ..addAll(events.take(3).map((e) {
-              return <String, dynamic>{
-                'title': e.title,
-                'month': e.month,
-                'day': e.day,
-                'time': e.eventDate != null
-                    ? '${e.eventDate!.hour}:${e.eventDate!.minute.toString().padLeft(2, '0')}'
-                    : '',
-                'location': e.location,
-                'teamRequired': e.type == 'Competition',
-                'category': e.type,
-              };
-            }));
-    } catch (_) {}
+    // ── 1. Upcoming events ──
+    _upcomingEvents
+      ..clear()
+      ..addAll(events.take(3).map((e) {
+            return <String, dynamic>{
+              'title': e.title,
+              'month': e.month,
+              'day': e.day,
+              'time': e.eventDate != null
+                  ? '${e.eventDate!.hour}:${e.eventDate!.minute.toString().padLeft(2, '0')}'
+                  : '',
+              'location': e.location,
+              'teamRequired': e.type == 'Competition',
+              'category': e.type,
+            };
+          }));
 
-    try {
-      final matches = await api.getMyMatches();
-      _myTeams
-        ..clear()
-        ..addAll(matches.take(3).map((m) {
-              return <String, dynamic>{
-                'name': 'Match: ${m.postId.substring(0, 8)}',
-                'members': 2,
-                'event': m.matchType,
-                'status': m.matchStatus,
-              };
-            }));
-    } catch (_) {}
+    // ── 2. Matches ──
+    _myTeams
+      ..clear()
+      ..addAll(matches.take(3).map((m) {
+            return <String, dynamic>{
+              'name': 'Match: ${m.postId.substring(0, 8)}',
+              'members': 2,
+              'event': m.matchType,
+              'status': m.matchStatus,
+            };
+          }));
 
-    try {
-      final candidates = await api.smartSearch('suggested connections');
-      _suggestedUsers
-        ..clear()
-        ..addAll(candidates.take(3).map((c) {
-              final m = Map<String, dynamic>.from(c);
-              return <String, dynamic>{
-                'name': m['name'] ?? 'User',
-                'faculty': m['faculty'] ?? m['major'] ?? '',
-                'skills': List<String>.from(m['skills'] ?? m['tags'] ?? []),
-                'matchScore': ((m['score'] ?? 0) * 100).toInt(),
-                'online': true,
-              };
-            }));
-    } catch (_) {}
+    // ── 3. Suggested users ──
+    _suggestedUsers
+      ..clear()
+      ..addAll(candidates.take(3).map((c) {
+            final m = Map<String, dynamic>.from(c);
+            return <String, dynamic>{
+              'name': m['name'] ?? 'User',
+              'faculty': m['faculty'] ?? m['major'] ?? '',
+              'skills': List<String>.from(m['skills'] ?? m['tags'] ?? []),
+              'matchScore': ((m['score'] ?? 0) * 100).toInt(),
+              'online': true,
+            };
+          }));
 
-    // Fetch AI-recommended events
-    try {
-      final recs = await api.recommendEvents();
-      _recommendedEvents
-        ..clear()
-        ..addAll(recs.take(4).map((r) {
-          final m = Map<String, dynamic>.from(r);
-          return <String, dynamic>{
-            'title': m['title'] ?? m['eventTitle'] ?? 'Event',
-            'reason': m['reason'] ?? m['explanation'] ?? 'Matches your profile',
-            'category': m['type'] ?? m['category'] ?? 'Event',
-            'date': m['date'] ?? '',
-            'location': m['location'] ?? '',
-            'score': m['score'] ?? m['relevanceScore'] ?? 0,
-          };
-        }));
-    } catch (_) {}
+    // ── 4. Recommended events ──
+    _recommendedEvents
+      ..clear()
+      ..addAll(recs.take(4).map((r) {
+        final m = Map<String, dynamic>.from(r);
+        return <String, dynamic>{
+          'title': m['title'] ?? m['eventTitle'] ?? 'Event',
+          'reason': m['reason'] ?? m['explanation'] ?? 'Matches your profile',
+          'category': m['type'] ?? m['category'] ?? 'Event',
+          'date': m['date'] ?? '',
+          'location': m['location'] ?? '',
+          'score': m['score'] ?? m['relevanceScore'] ?? 0,
+        };
+      }));
 
     if (mounted) setState(() => _loading = false);
   }
@@ -324,7 +330,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 else if (_aiInsights.isEmpty)
                   _EmptyState(isDark: isDark, icon: Icons.auto_awesome_rounded, message: 'AI is analyzing your profile...', actionLabel: 'Refresh', onAction: _fetchFromBackend)
                 else
-                  _AIInsightsList(insights: _aiInsights),
+                  _AIInsightsList(insights: _aiInsights, onRefresh: _fetchFromBackend),
                 const SizedBox(height: 28),
 
                 // --- Events + Teams ---
@@ -896,11 +902,85 @@ class _SectionHeader extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────
-// AI Insights
+// AI Insights — Stateful with executable actions
 // ─────────────────────────────────────────────────────────
-class _AIInsightsList extends StatelessWidget {
+class _AIInsightsList extends StatefulWidget {
   final List<Map<String, dynamic>> insights;
-  const _AIInsightsList({required this.insights});
+  final VoidCallback onRefresh;
+  const _AIInsightsList({required this.insights, required this.onRefresh});
+
+  @override
+  State<_AIInsightsList> createState() => _AIInsightsListState();
+}
+
+class _AIInsightsListState extends State<_AIInsightsList> {
+  final Map<int, String> _buttonState = {}; // index → 'loading' | 'done' | 'error'
+
+  Future<void> _executeAction(int index, Map<String, dynamic> insight) async {
+    final actionType = insight['action_type'] as String? ?? '';
+    final actionData = insight['action_data'] as Map<String, dynamic>? ?? {};
+
+    // Navigation actions — handle locally, no API call needed
+    if (actionType == 'navigate' && actionData['path'] != null) {
+      if (mounted) context.go(actionData['path'] as String);
+      return;
+    }
+
+    // Empty action_type → fall back to type-based navigation
+    if (actionType.isEmpty) {
+      final type = insight['type'] as String? ?? '';
+      switch (type) {
+        case 'skill_tip':
+          context.go('/student/profile');
+          return;
+        case 'event_alert':
+          context.go('/student/event');
+          return;
+        case 'team_request':
+          context.go('/student/team');
+          return;
+        default:
+          showDialog(
+            context: context,
+            builder: (ctx) => _InsightDetailDialog(
+              title: insight['title'] as String,
+              content: insight['content'] as String,
+              color: insight['color'] as Color,
+              actionType: actionType,
+              actionData: actionData,
+              onRefresh: widget.onRefresh,
+            ),
+          );
+          return;
+      }
+    }
+
+    // Execute via backend
+    setState(() => _buttonState[index] = 'loading');
+    try {
+      final result = await ApiService().executeInsightAction(actionType, actionData);
+      if (mounted) {
+        setState(() => _buttonState[index] = 'done');
+        // Show brief success snackbar
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(result['description'] ?? 'Done!'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ));
+        // Refresh dashboard data
+        widget.onRefresh();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _buttonState[index] = 'error');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -919,9 +999,14 @@ class _AIInsightsList extends StatelessWidget {
         ],
       ),
       child: Column(
-        children: insights.asMap().entries.map((entry) {
+        children: widget.insights.asMap().entries.map((entry) {
           final index = entry.key;
           final insight = entry.value;
+          final state = _buttonState[index];
+          final isDone = state == 'done';
+          final isLoading = state == 'loading';
+          final buttonColor = insight['color'] as Color;
+
           return Column(
             children: [
               Padding(
@@ -932,14 +1017,12 @@ class _AIInsightsList extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: (insight['color'] as Color).withValues(
-                          alpha: 0.1,
-                        ),
+                        color: buttonColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
                         insight['icon'] as IconData,
-                        color: insight['color'] as Color,
+                        color: buttonColor,
                         size: 20,
                       ),
                     ),
@@ -953,9 +1036,7 @@ class _AIInsightsList extends StatelessWidget {
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
-                              color: isDark
-                                  ? Colors.white
-                                  : AppTheme.textPrimaryColor,
+                              color: isDark ? Colors.white : AppTheme.textPrimaryColor,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -966,9 +1047,7 @@ class _AIInsightsList extends StatelessWidget {
                               height: 1.5,
                               color: isDark
                                   ? Colors.white.withValues(alpha: 0.6)
-                                  : AppTheme.primaryColor.withValues(
-                                      alpha: 0.7,
-                                    ),
+                                  : AppTheme.primaryColor.withValues(alpha: 0.7),
                             ),
                           ),
                         ],
@@ -976,55 +1055,38 @@ class _AIInsightsList extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton(
-                      onPressed: () {
-                        final title = insight['title'] as String;
-                        final content = insight['content'] as String;
-                        final color = insight['color'] as Color;
-                        final type = insight['type'] as String? ?? '';
-                        // Navigate based on type, or show detail dialog
-                        switch (type) {
-                          case 'skill_tip':
-                            context.go('/student/profile');
-                            return;
-                          case 'event_alert':
-                            context.go('/student/event');
-                            return;
-                          case 'team_request':
-                            context.go('/student/team');
-                            return;
-                          default:
-                            showDialog(
-                              context: context,
-                              builder: (ctx) => _InsightDetailDialog(
-                                title: title,
-                                content: content,
-                                color: color,
-                              ),
-                            );
-                        }
-                      },
+                      onPressed: (isLoading || isDone) ? null : () => _executeAction(index, insight),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: insight['color'] as Color,
+                        backgroundColor: isDone ? Colors.green : buttonColor,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        disabledBackgroundColor: isDone ? Colors.green.shade300 : buttonColor.withValues(alpha: 0.5),
+                        disabledForegroundColor: Colors.white70,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         elevation: 0,
-                        textStyle: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                       ),
-                      child: Text(insight['actionText'] as String),
+                      child: isLoading
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : isDone
+                              ? const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.check_rounded, size: 14),
+                                    SizedBox(width: 4),
+                                    Text('Done'),
+                                  ],
+                                )
+                              : Text(insight['actionText'] as String),
                     ),
                   ],
                 ),
               ),
-              if (index < insights.length - 1)
+              if (index < widget.insights.length - 1)
                 Divider(
                   height: 1,
                   color: AppTheme.accentPurple.withValues(alpha: 0.1),
@@ -1038,18 +1100,59 @@ class _AIInsightsList extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────
-// Insight Detail Dialog (Interactive AI Summary Canvas)
+// Insight Detail Dialog — AI-powered with executable actions
 // ─────────────────────────────────────────────────────────
-class _InsightDetailDialog extends StatelessWidget {
+class _InsightDetailDialog extends StatefulWidget {
   final String title;
   final String content;
   final Color color;
+  final String actionType;
+  final Map<String, dynamic> actionData;
+  final VoidCallback onRefresh;
 
   const _InsightDetailDialog({
     required this.title,
     required this.content,
     required this.color,
+    required this.actionType,
+    required this.actionData,
+    required this.onRefresh,
   });
+
+  @override
+  State<_InsightDetailDialog> createState() => _InsightDetailDialogState();
+}
+
+class _InsightDetailDialogState extends State<_InsightDetailDialog> {
+  bool _executing = false;
+  bool _executed = false;
+  String? _resultMsg;
+
+  Future<void> _execute() async {
+    if (widget.actionType.isEmpty || widget.actionType == 'navigate') {
+      // Navigate fallback
+      if (widget.actionData['path'] != null) {
+        Navigator.pop(context);
+        context.go(widget.actionData['path'] as String);
+      }
+      return;
+    }
+    setState(() { _executing = true; _resultMsg = null; });
+    try {
+      final result = await ApiService().executeInsightAction(widget.actionType, widget.actionData);
+      setState(() {
+        _executing = false;
+        _executed = true;
+        _resultMsg = '✅ ${result['description'] ?? 'Action completed!'}';
+      });
+      widget.onRefresh();
+    } catch (e) {
+      setState(() {
+        _executing = false;
+        _resultMsg = '❌ Failed: $e';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1057,9 +1160,7 @@ class _InsightDetailDialog extends StatelessWidget {
     final bg = isDark ? const Color(0xFF1E1E2E) : Colors.white;
     final tc = isDark ? Colors.white : Colors.black87;
     final sc = isDark ? Colors.white54 : Colors.black54;
-
-    // Parse content into sections (split by newlines)
-    final sections = content.split('\n').where((s) => s.trim().isNotEmpty).toList();
+    final sections = widget.content.split('\n').where((s) => s.trim().isNotEmpty).toList();
 
     return Dialog(
       backgroundColor: bg,
@@ -1076,7 +1177,7 @@ class _InsightDetailDialog extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [color, color.withValues(alpha: 0.7)],
+                  colors: [widget.color, widget.color.withValues(alpha: 0.7)],
                 ),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(24),
@@ -1098,9 +1199,22 @@ class _InsightDetailDialog extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('AI Executive Summary', style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.w500)),
+                        Row(
+                          children: [
+                            const Text('AI Agent', style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.w500)),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text('JARVIS', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 2),
-                        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                        Text(widget.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                       ],
                     ),
                   ),
@@ -1126,18 +1240,18 @@ class _InsightDetailDialog extends StatelessWidget {
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.06),
+                        color: widget.color.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: color.withValues(alpha: 0.15)),
+                        border: Border.all(color: widget.color.withValues(alpha: 0.15)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.lightbulb_rounded, size: 16, color: color),
+                              Icon(Icons.lightbulb_rounded, size: 16, color: widget.color),
                               const SizedBox(width: 8),
-                              Text('Key Insight', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color)),
+                              Text('Key Insight', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: widget.color)),
                             ],
                           ),
                           const SizedBox(height: 10),
@@ -1150,29 +1264,87 @@ class _InsightDetailDialog extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
 
-                    // Suggested actions
-                    Text('Suggested Actions', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: tc)),
+                    // Action section — show AI-determined action
+                    if (widget.actionType.isNotEmpty) ...[
+                      Text('AI Agent Action', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: tc)),
+                      const SizedBox(height: 4),
+                      Text(
+                        'JARVIS can execute this action for you automatically.',
+                        style: TextStyle(fontSize: 12, color: sc),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentPurple.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.accentPurple.withValues(alpha: 0.15)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _actionIcon(widget.actionType),
+                              size: 20,
+                              color: widget.color,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _actionDescription(widget.actionType, widget.actionData),
+                                style: TextStyle(fontSize: 13, color: tc, fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    // Result message
+                    if (_resultMsg != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: _executed
+                              ? Colors.green.withValues(alpha: 0.08)
+                              : Colors.red.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: _executed
+                                ? Colors.green.withValues(alpha: 0.2)
+                                : Colors.red.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Text(_resultMsg!, style: TextStyle(fontSize: 13, color: tc)),
+                      ),
+                    ],
+
+                    // Quick navigation shortcuts
+                    const SizedBox(height: 16),
+                    Text('Quick Navigation', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: tc)),
                     const SizedBox(height: 10),
                     GestureDetector(
                       onTap: () { Navigator.pop(context); context.go('/student/profile'); },
-                      child: _actionTile(Icons.tag_rounded, 'Update your skills and tags', 'Keep your profile current for better matches', color, sc),
+                      child: _actionTile(Icons.tag_rounded, 'Update your skills and tags', 'Keep your profile current', widget.color, sc),
                     ),
                     const SizedBox(height: 8),
                     GestureDetector(
                       onTap: () { Navigator.pop(context); context.go('/student/event'); },
-                      child: _actionTile(Icons.event_rounded, 'Explore recommended events', 'Find events that match your interests', color, sc),
+                      child: _actionTile(Icons.event_rounded, 'Explore events', 'Find events that match your interests', widget.color, sc),
                     ),
                     const SizedBox(height: 8),
                     GestureDetector(
                       onTap: () { Navigator.pop(context); context.go('/student/team'); },
-                      child: _actionTile(Icons.group_add_rounded, 'Connect with suggested teammates', 'Build your team with compatible members', color, sc),
+                      child: _actionTile(Icons.group_add_rounded, 'Find teammates', 'Build your team with compatible members', widget.color, sc),
                     ),
                   ],
                 ),
               ),
             ),
 
-            // ── Footer ──
+            // ── Footer with execute button ──
             Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
               decoration: BoxDecoration(
@@ -1185,6 +1357,27 @@ class _InsightDetailDialog extends StatelessWidget {
                     onPressed: () => Navigator.pop(context),
                     child: Text('Close', style: TextStyle(color: sc)),
                   ),
+                  if (widget.actionType.isNotEmpty && widget.actionType != 'navigate') ...[
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: (_executing || _executed) ? null : _execute,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _executed ? Colors.green : widget.color,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: _executed ? Colors.green.shade300 : widget.color.withValues(alpha: 0.5),
+                        disabledForegroundColor: Colors.white70,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      ),
+                      icon: _executing
+                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Icon(_executed ? Icons.check_rounded : Icons.auto_awesome_rounded, size: 16),
+                      label: Text(
+                        _executed ? 'Executed' : 'Execute Action',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1192,6 +1385,28 @@ class _InsightDetailDialog extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  IconData _actionIcon(String actionType) {
+    switch (actionType) {
+      case 'join_event': return Icons.event_available_rounded;
+      case 'apply_to_post': return Icons.send_rounded;
+      case 'accept_match': return Icons.handshake_rounded;
+      case 'add_tags': return Icons.label_rounded;
+      case 'navigate': return Icons.open_in_new_rounded;
+      default: return Icons.auto_awesome_rounded;
+    }
+  }
+
+  String _actionDescription(String actionType, Map<String, dynamic> data) {
+    switch (actionType) {
+      case 'join_event': return 'Join event ${data['event_id'] ?? ''}';
+      case 'apply_to_post': return 'Apply to team post ${data['post_id'] ?? ''}';
+      case 'accept_match': return 'Accept match ${data['match_id'] ?? ''}';
+      case 'add_tags': return 'Add ${(data['skill_tags'] as List?)?.length ?? 0} skill tags to your profile';
+      case 'navigate': return 'Navigate to ${data['path'] ?? '/student'}';
+      default: return 'Execute $actionType';
+    }
   }
 
   Widget _actionTile(IconData icon, String title, String subtitle, Color color, Color sc) {
