@@ -102,12 +102,42 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         final raw = insightData['insights'];
         if (raw is List && raw.isNotEmpty) {
           _aiInsights = raw.map<Map<String, dynamic>>((i) {
+            final type = i['type'] ?? '';
+            IconData icon;
+            Color color;
+            switch (type) {
+              case 'skill_tip':
+                icon = Icons.lightbulb_rounded;
+                color = const Color(0xFF8B5CF6);
+                break;
+              case 'event_alert':
+                icon = Icons.event_rounded;
+                color = AppTheme.primaryColor;
+                break;
+              case 'team_request':
+                icon = Icons.groups_rounded;
+                color = AppTheme.secondaryColor;
+                break;
+              case 'enterprise_match':
+                icon = Icons.business_rounded;
+                color = const Color(0xFFEC4899);
+                break;
+              case 'connection':
+                icon = Icons.people_rounded;
+                color = Colors.teal;
+                break;
+              default:
+                icon = Icons.auto_awesome_rounded;
+                color = AppTheme.primaryColor;
+            }
             return {
               'title': i['title'] ?? 'AI Insight',
               'content': i['content'] ?? i.toString(),
-              'icon': Icons.auto_awesome_rounded,
-              'color': AppTheme.primaryColor,
-              'actionText': 'View',
+              'icon': icon,
+              'color': color,
+              'actionText': i['action_text'] ?? 'View',
+              'type': type,
+              'priority': i['priority'] ?? 'medium',
             };
           }).toList();
         }
@@ -223,31 +253,24 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       barrierDismissible: false,
       builder: (ctx) => _AiConversationDialog(
         initialPrompt: initialPrompt,
-        onConfirm: (finalPrompt) async {
+        onConfirm: (lastResult) {
           Navigator.pop(ctx);
-          setState(() { _aiCmdLoading = true; _aiCmdResult = null; });
-          try {
-            final result = await ApiService().aiCommand(finalPrompt);
-            final desc = result['description'] ?? 'Done';
-            final executed = result['executed'] == true;
-            final action = result['action'] ?? '';
-            setState(() {
-              _aiCmdResult = executed ? '✅ $desc' : '💡 $desc';
-              _aiCmdLoading = false;
-            });
-            if (executed) {
-              _aiCmdCtrl.clear();
-              if (action == 'navigate' && result['data'] != null && mounted) {
-                context.go(result['data']['path'] ?? '/student');
-              } else {
-                _fetchFromBackend();
-              }
+          // The action was already executed inside _askAi, so just
+          // update the UI with the result and refresh data.
+          final desc = lastResult['description'] ?? 'Done';
+          final executed = lastResult['executed'] == true;
+          final action = lastResult['action'] ?? '';
+          setState(() {
+            _aiCmdResult = executed ? '✅ $desc' : '💡 $desc';
+            _aiCmdLoading = false;
+          });
+          if (executed) {
+            _aiCmdCtrl.clear();
+            if (action == 'navigate' && lastResult['data'] != null && mounted) {
+              context.go(lastResult['data']['path'] ?? '/student');
+            } else {
+              _fetchFromBackend();
             }
-          } catch (e) {
-            setState(() {
-              _aiCmdResult = '❌ Failed: $e';
-              _aiCmdLoading = false;
-            });
           }
         },
       ),
@@ -319,13 +342,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                               icon: Icons.calendar_today_rounded,
                               iconColor: AppTheme.primaryColor,
                               actionText: 'View All',
-                              onAction: () => context.go('/student/events'),
+                              onAction: () => context.go('/student/event'),
                             ),
                             const SizedBox(height: 12),
                             if (_loading)
                               ...[for (var i = 0; i < 2; i++) Padding(padding: const EdgeInsets.only(bottom: 12), child: _SkeletonCard(isDark: isDark, height: 90))]
                             else if (_upcomingEvents.isEmpty)
-                              _EmptyState(isDark: isDark, icon: Icons.event_rounded, message: 'No upcoming events', actionLabel: 'Browse Events', onAction: () => context.go('/student/events'))
+                              _EmptyState(isDark: isDark, icon: Icons.event_rounded, message: 'No upcoming events', actionLabel: 'Browse Events', onAction: () => context.go('/student/event'))
                             else
                               ..._upcomingEvents.map(
                                 (e) => Padding(
@@ -346,13 +369,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                               icon: Icons.groups_rounded,
                               iconColor: AppTheme.secondaryColor,
                               actionText: '+ New',
-                              onAction: () => context.go('/student/teams'),
+                              onAction: () => context.go('/student/team'),
                             ),
                             const SizedBox(height: 12),
                             if (_loading)
                               ...[for (var i = 0; i < 2; i++) Padding(padding: const EdgeInsets.only(bottom: 12), child: _SkeletonCard(isDark: isDark, height: 80))]
                             else if (_myTeams.isEmpty)
-                              _EmptyState(isDark: isDark, icon: Icons.group_add_rounded, message: 'No teams yet', actionLabel: 'Create Team', onAction: () => context.go('/student/teams'))
+                              _EmptyState(isDark: isDark, icon: Icons.group_add_rounded, message: 'No teams yet', actionLabel: 'Create Team', onAction: () => context.go('/student/team'))
                             else
                               ..._myTeams.map(
                                 (t) => Padding(
@@ -374,13 +397,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         icon: Icons.calendar_today_rounded,
                         iconColor: AppTheme.primaryColor,
                         actionText: 'View All',
-                        onAction: () => context.go('/student/events'),
+                        onAction: () => context.go('/student/event'),
                       ),
                       const SizedBox(height: 12),
                       if (_loading)
                         ...[for (var i = 0; i < 2; i++) Padding(padding: const EdgeInsets.only(bottom: 12), child: _SkeletonCard(isDark: isDark, height: 90))]
                       else if (_upcomingEvents.isEmpty)
-                        _EmptyState(isDark: isDark, icon: Icons.event_rounded, message: 'No upcoming events', actionLabel: 'Browse Events', onAction: () => context.go('/student/events'))
+                        _EmptyState(isDark: isDark, icon: Icons.event_rounded, message: 'No upcoming events', actionLabel: 'Browse Events', onAction: () => context.go('/student/event'))
                       else
                         ..._upcomingEvents.map(
                           (e) => Padding(
@@ -394,13 +417,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                         icon: Icons.groups_rounded,
                         iconColor: AppTheme.secondaryColor,
                         actionText: '+ New',
-                        onAction: () => context.go('/student/teams'),
+                        onAction: () => context.go('/student/team'),
                       ),
                       const SizedBox(height: 12),
                       if (_loading)
                         ...[for (var i = 0; i < 2; i++) Padding(padding: const EdgeInsets.only(bottom: 12), child: _SkeletonCard(isDark: isDark, height: 80))]
                       else if (_myTeams.isEmpty)
-                        _EmptyState(isDark: isDark, icon: Icons.group_add_rounded, message: 'No teams yet', actionLabel: 'Create Team', onAction: () => context.go('/student/teams'))
+                        _EmptyState(isDark: isDark, icon: Icons.group_add_rounded, message: 'No teams yet', actionLabel: 'Create Team', onAction: () => context.go('/student/team'))
                       else
                         ..._myTeams.map(
                           (t) => Padding(
@@ -418,7 +441,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   icon: Icons.auto_awesome_rounded,
                   iconColor: const Color(0xFF8B5CF6),
                   actionText: 'View All',
-                  onAction: () => context.go('/student/events'),
+                  onAction: () => context.go('/student/event'),
                 ).animate().fadeIn(delay: 275.ms, duration: 400.ms),
                 const SizedBox(height: 12),
                 if (_loading)
@@ -427,7 +450,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     child: Row(children: [for (var i = 0; i < 3; i++) Expanded(child: Padding(padding: EdgeInsets.only(right: i < 2 ? 12 : 0), child: _SkeletonCard(isDark: isDark, height: 150)))]),
                   )
                 else if (_recommendedEvents.isEmpty)
-                  _EmptyState(isDark: isDark, icon: Icons.recommend_rounded, message: 'No recommendations yet — complete your profile for better matches', actionLabel: 'Browse Events', onAction: () => context.go('/student/events'))
+                  _EmptyState(isDark: isDark, icon: Icons.recommend_rounded, message: 'No recommendations yet — complete your profile for better matches', actionLabel: 'Browse Events', onAction: () => context.go('/student/event'))
                 else
                   SizedBox(
                     height: 150,
@@ -957,14 +980,28 @@ class _AIInsightsList extends StatelessWidget {
                         final title = insight['title'] as String;
                         final content = insight['content'] as String;
                         final color = insight['color'] as Color;
-                        showDialog(
-                          context: context,
-                          builder: (ctx) => _InsightDetailDialog(
-                            title: title,
-                            content: content,
-                            color: color,
-                          ),
-                        );
+                        final type = insight['type'] as String? ?? '';
+                        // Navigate based on type, or show detail dialog
+                        switch (type) {
+                          case 'skill_tip':
+                            context.go('/student/profile');
+                            return;
+                          case 'event_alert':
+                            context.go('/student/event');
+                            return;
+                          case 'team_request':
+                            context.go('/student/team');
+                            return;
+                          default:
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => _InsightDetailDialog(
+                                title: title,
+                                content: content,
+                                color: color,
+                              ),
+                            );
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: insight['color'] as Color,
@@ -1116,11 +1153,20 @@ class _InsightDetailDialog extends StatelessWidget {
                     // Suggested actions
                     Text('Suggested Actions', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: tc)),
                     const SizedBox(height: 10),
-                    _actionTile(Icons.tag_rounded, 'Update your skills and tags', 'Keep your profile current for better matches', color, sc),
+                    GestureDetector(
+                      onTap: () { Navigator.pop(context); context.go('/student/profile'); },
+                      child: _actionTile(Icons.tag_rounded, 'Update your skills and tags', 'Keep your profile current for better matches', color, sc),
+                    ),
                     const SizedBox(height: 8),
-                    _actionTile(Icons.event_rounded, 'Explore recommended events', 'Find events that match your interests', color, sc),
+                    GestureDetector(
+                      onTap: () { Navigator.pop(context); context.go('/student/event'); },
+                      child: _actionTile(Icons.event_rounded, 'Explore recommended events', 'Find events that match your interests', color, sc),
+                    ),
                     const SizedBox(height: 8),
-                    _actionTile(Icons.group_add_rounded, 'Connect with suggested teammates', 'Build your team with compatible members', color, sc),
+                    GestureDetector(
+                      onTap: () { Navigator.pop(context); context.go('/student/team'); },
+                      child: _actionTile(Icons.group_add_rounded, 'Connect with suggested teammates', 'Build your team with compatible members', color, sc),
+                    ),
                   ],
                 ),
               ),
@@ -2051,7 +2097,7 @@ class _RecommendedEventCard extends StatelessWidget {
 // ─── AI Conversation Dialog ─────────────────────────────────────
 class _AiConversationDialog extends StatefulWidget {
   final String initialPrompt;
-  final Future<void> Function(String finalPrompt) onConfirm;
+  final void Function(Map<String, dynamic> lastResult) onConfirm;
 
   const _AiConversationDialog({
     required this.initialPrompt,
@@ -2069,6 +2115,8 @@ class _AiConversationDialogState extends State<_AiConversationDialog> {
   bool _thinking = false;
   bool _confirming = false;
   String _lastAiPlan = '';
+  Map<String, dynamic> _lastResult = {};
+  bool _hasExecuted = false;
 
   @override
   void initState() {
@@ -2092,13 +2140,16 @@ class _AiConversationDialogState extends State<_AiConversationDialog> {
       final action = result['action'] ?? 'suggest';
       final executed = result['executed'] == true;
 
+      // Store the result so Confirm can pass it without re-executing
+      _lastResult = result;
+      _hasExecuted = executed;
+      _lastAiPlan = prompt;
+
       String aiMsg;
       if (executed) {
-        aiMsg = '✅ Done! $desc\n\nPress "Confirm" to finalize, or tell me if you want changes.';
-        _lastAiPlan = prompt;
+        aiMsg = '✅ Done! $desc\n\nPress "Confirm" to close, or tell me if you want changes.';
       } else {
         aiMsg = '💡 $desc\n\nWould you like me to proceed, or would you like to refine your request?';
-        _lastAiPlan = prompt;
       }
 
       setState(() {
@@ -2335,9 +2386,9 @@ class _AiConversationDialogState extends State<_AiConversationDialog> {
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton.icon(
-                        onPressed: (_thinking || _confirming) ? null : () async {
+                        onPressed: (_thinking || _confirming) ? null : () {
                           setState(() => _confirming = true);
-                          await widget.onConfirm(_lastAiPlan.isNotEmpty ? _lastAiPlan : widget.initialPrompt);
+                          widget.onConfirm(_lastResult.isNotEmpty ? _lastResult : {'description': 'No action taken', 'executed': false});
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryColor,

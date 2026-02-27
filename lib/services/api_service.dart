@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import '../models/models.dart';
 
 /// Central API service for communicating with the kitahack-tehais backend.
@@ -320,6 +321,7 @@ class ApiService {
     String mimeType, {
     String folder = 'uploads',
   }) async {
+    await _refreshTokenIfNeeded();
     final uri = Uri.parse('$_baseUrl/storage/upload?folder=$folder');
     final req = http.MultipartRequest('POST', uri);
     // Auth header
@@ -332,6 +334,7 @@ class ApiService {
       'file',
       bytes,
       filename: fileName,
+      contentType: MediaType.parse(mimeType),
     ));
     final streamed = await req.send();
     final body = await streamed.stream.bytesToString();

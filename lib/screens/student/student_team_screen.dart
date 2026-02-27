@@ -2239,12 +2239,24 @@ class _State extends State<StudentTeamScreen> {
                               prompt: prompt,
                               isDark: isDark,
                               onResult: (post) {
-                                setDlgState(() {
-                                  nameCtrl.text = post.title;
-                                  eventCtrl.text = post.type;
-                                  selectedEvent = post.type;
-                                  selectedTags.clear();
-                                  selectedTags.addAll(post.requirements.map((r) => r.toString()));
+                                // Post already created in Firestore by AI — close dialog and enter room
+                                Navigator.pop(ctx); // close create dialog
+                                _fetchTeamData().then((_) {
+                                  if (mounted) {
+                                    setState(() => _inRoom = true);
+                                    ScaffoldMessenger.of(this.context).showSnackBar(
+                                      SnackBar(
+                                        content: Row(children: [
+                                          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
+                                          const SizedBox(width: 8),
+                                          Expanded(child: Text('Room "${post.title}" created by AI!')),
+                                        ]),
+                                        backgroundColor: Colors.green,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    );
+                                  }
                                 });
                               },
                             );
