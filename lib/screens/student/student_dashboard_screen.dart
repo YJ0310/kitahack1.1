@@ -216,6 +216,44 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     }
   }
 
+  /// Open AI conversational modal — allows refining before executing
+  void _openAiConversation(String initialPrompt) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _AiConversationDialog(
+        initialPrompt: initialPrompt,
+        onConfirm: (finalPrompt) async {
+          Navigator.pop(ctx);
+          setState(() { _aiCmdLoading = true; _aiCmdResult = null; });
+          try {
+            final result = await ApiService().aiCommand(finalPrompt);
+            final desc = result['description'] ?? 'Done';
+            final executed = result['executed'] == true;
+            final action = result['action'] ?? '';
+            setState(() {
+              _aiCmdResult = executed ? '✅ $desc' : '💡 $desc';
+              _aiCmdLoading = false;
+            });
+            if (executed) {
+              _aiCmdCtrl.clear();
+              if (action == 'navigate' && result['data'] != null && mounted) {
+                context.go(result['data']['path'] ?? '/student');
+              } else {
+                _fetchFromBackend();
+              }
+            }
+          } catch (e) {
+            setState(() {
+              _aiCmdResult = '❌ Failed: $e';
+              _aiCmdLoading = false;
+            });
+          }
+        },
+      ),
+    );
+  }
+
   // --- Data (loaded from API) ---
   final List<Map<String, dynamic>> _upcomingEvents = [];
   final List<Map<String, dynamic>> _myTeams = [];
@@ -241,12 +279,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- Welcome Banner ---
+                // --- Welcome Banner with AI Input ---
                 _WelcomeBanner(
                   isDark: isDark,
                   userName: AuthService().displayName?.split(' ').first ?? 'User',
                   eventCount: _upcomingEvents.length,
                   teamCount: _myTeams.length,
+                  onAiSubmit: (prompt) => _openAiConversation(prompt),
                 ).animate().fadeIn(duration: 500.ms),
                 const SizedBox(height: 28),
 
@@ -263,16 +302,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   _EmptyState(isDark: isDark, icon: Icons.auto_awesome_rounded, message: 'AI is analyzing your profile...', actionLabel: 'Refresh', onAction: _fetchFromBackend)
                 else
                   _AIInsightsList(insights: _aiInsights),
-                const SizedBox(height: 28),
-
-                // --- AI Command Prompt Area ---
-                _AiCommandBox(
-                  controller: _aiCmdCtrl,
-                  loading: _aiCmdLoading,
-                  result: _aiCmdResult,
-                  isDark: isDark,
-                  onSubmit: _runAiCommand,
-                ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
                 const SizedBox(height: 28),
 
                 // --- Events + Teams ---
@@ -562,14 +591,28 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 }
 
 // ─────────────────────────────────────────────────────────
-// Welcome Banner
+// Welcome Banner (with integrated AI input)
 // ─────────────────────────────────────────────────────────
-class _WelcomeBanner extends StatelessWidget {
+class _WelcomeBanner extends StatefulWidget {
   final bool isDark;
   final String userName;
   final int eventCount;
   final int teamCount;
-  const _WelcomeBanner({required this.isDark, this.userName = 'User', this.eventCount = 0, this.teamCount = 0});
+  final void Function(String prompt) onAiSubmit;
+  const _WelcomeBanner({required this.isDark, this.userName = 'User', this.eventCount = 0, this.teamCount = 0, required this.onAiSubmit});
+
+  @override
+  State<_WelcomeBanner> createState() => _WelcomeBannerState();
+}
+
+class _WelcomeBannerState extends State<_WelcomeBanner> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -622,7 +665,7 @@ class _WelcomeBanner extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Good morning, $userName! ☕',
+                'Good morning, ${widget.userName}! ☕',
                 style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
@@ -631,11 +674,75 @@ class _WelcomeBanner extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'You have $eventCount upcoming events and $teamCount team invitations pending.\nGrab a teh ais and start connecting!',
+                'You have ${widget.eventCount} upcoming events and ${widget.teamCount} team invitations pending.\nGrab a teh ais and start connecting!',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.white.withValues(alpha: 0.85),
                   height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 18),
+              // ── AI Assistant Input ──
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 8),
+                    Icon(Icons.auto_awesome, size: 18, color: Colors.white.withValues(alpha: 0.8)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _ctrl,
+                        style: const TextStyle(fontSize: 13, color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Ask AI: "Add tags for me", "Suggest events", "Find teammates"...',
+                          hintStyle: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
+                          filled: false,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                          isDense: true,
+                        ),
+                        onSubmitted: (_) {
+                          final p = _ctrl.text.trim();
+                          if (p.isNotEmpty) {
+                            widget.onAiSubmit(p);
+                            _ctrl.clear();
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Material(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          final p = _ctrl.text.trim();
+                          if (p.isNotEmpty) {
+                            widget.onAiSubmit(p);
+                            _ctrl.clear();
+                          }
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.auto_awesome, size: 14, color: Colors.white),
+                              SizedBox(width: 6),
+                              Text('Ask AI', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
                 ),
               ),
             ],
@@ -847,47 +954,15 @@ class _AIInsightsList extends StatelessWidget {
                     const SizedBox(width: 12),
                     ElevatedButton(
                       onPressed: () {
-                        final actionLabel = insight['actionText'] as String;
                         final title = insight['title'] as String;
+                        final content = insight['content'] as String;
+                        final color = insight['color'] as Color;
                         showDialog(
                           context: context,
-                          builder: (ctx) => AlertDialog(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            title: Text(
-                              title,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            content: Text(
-                              'Are you sure you want to "$actionLabel" for "$title"?',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx),
-                                child: const Text('Cancel'),
-                              ),
-                              ElevatedButton(
-                                onPressed: () {
-                                  Navigator.pop(ctx);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        '$actionLabel action completed!',
-                                      ),
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: insight['color'] as Color,
-                                  foregroundColor: Colors.white,
-                                ),
-                                child: Text(actionLabel),
-                              ),
-                            ],
+                          builder: (ctx) => _InsightDetailDialog(
+                            title: title,
+                            content: content,
+                            color: color,
                           ),
                         );
                       },
@@ -920,6 +995,182 @@ class _AIInsightsList extends StatelessWidget {
             ],
           );
         }).toList(),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Insight Detail Dialog (Interactive AI Summary Canvas)
+// ─────────────────────────────────────────────────────────
+class _InsightDetailDialog extends StatelessWidget {
+  final String title;
+  final String content;
+  final Color color;
+
+  const _InsightDetailDialog({
+    required this.title,
+    required this.content,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF1E1E2E) : Colors.white;
+    final tc = isDark ? Colors.white : Colors.black87;
+    final sc = isDark ? Colors.white54 : Colors.black54;
+
+    // Parse content into sections (split by newlines)
+    final sections = content.split('\n').where((s) => s.trim().isNotEmpty).toList();
+
+    return Dialog(
+      backgroundColor: bg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520, maxHeight: 500),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Header ──
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [color, color.withValues(alpha: 0.7)],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.auto_awesome_rounded, size: 18, color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('AI Executive Summary', style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.w500)),
+                        const SizedBox(height: 2),
+                        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, size: 20, color: Colors.white70),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Content ──
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Key insight card
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: color.withValues(alpha: 0.15)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.lightbulb_rounded, size: 16, color: color),
+                              const SizedBox(width: 8),
+                              Text('Key Insight', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color)),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          ...sections.map((s) => Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Text(s.trim(), style: TextStyle(fontSize: 13, height: 1.6, color: tc)),
+                          )),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Suggested actions
+                    Text('Suggested Actions', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: tc)),
+                    const SizedBox(height: 10),
+                    _actionTile(Icons.tag_rounded, 'Update your skills and tags', 'Keep your profile current for better matches', color, sc),
+                    const SizedBox(height: 8),
+                    _actionTile(Icons.event_rounded, 'Explore recommended events', 'Find events that match your interests', color, sc),
+                    const SizedBox(height: 8),
+                    _actionTile(Icons.group_add_rounded, 'Connect with suggested teammates', 'Build your team with compatible members', color, sc),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Footer ──
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06))),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Close', style: TextStyle(color: sc)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _actionTile(IconData icon, String title, String subtitle, Color color, Color sc) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+                const SizedBox(height: 2),
+                Text(subtitle, style: TextStyle(fontSize: 11, color: sc)),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded, size: 18, color: sc),
+        ],
       ),
     );
   }
@@ -1792,6 +2043,320 @@ class _RecommendedEventCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── AI Conversation Dialog ─────────────────────────────────────
+class _AiConversationDialog extends StatefulWidget {
+  final String initialPrompt;
+  final Future<void> Function(String finalPrompt) onConfirm;
+
+  const _AiConversationDialog({
+    required this.initialPrompt,
+    required this.onConfirm,
+  });
+
+  @override
+  State<_AiConversationDialog> createState() => _AiConversationDialogState();
+}
+
+class _AiConversationDialogState extends State<_AiConversationDialog> {
+  final _inputCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+  final List<Map<String, String>> _messages = []; // role: user/ai, text
+  bool _thinking = false;
+  bool _confirming = false;
+  String _lastAiPlan = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _messages.add({'role': 'user', 'text': widget.initialPrompt});
+    _askAi(widget.initialPrompt);
+  }
+
+  @override
+  void dispose() {
+    _inputCtrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _askAi(String prompt) async {
+    setState(() => _thinking = true);
+    try {
+      final result = await ApiService().aiCommand(prompt);
+      final desc = result['description'] ?? 'I can help with that.';
+      final action = result['action'] ?? 'suggest';
+      final executed = result['executed'] == true;
+
+      String aiMsg;
+      if (executed) {
+        aiMsg = '✅ Done! $desc\n\nPress "Confirm" to finalize, or tell me if you want changes.';
+        _lastAiPlan = prompt;
+      } else {
+        aiMsg = '💡 $desc\n\nWould you like me to proceed, or would you like to refine your request?';
+        _lastAiPlan = prompt;
+      }
+
+      setState(() {
+        _messages.add({'role': 'ai', 'text': aiMsg});
+        _thinking = false;
+      });
+    } catch (e) {
+      setState(() {
+        _messages.add({'role': 'ai', 'text': '❌ Error: $e\n\nPlease try rephrasing.'});
+        _thinking = false;
+      });
+    }
+    _scrollDown();
+  }
+
+  void _sendFollowUp() {
+    final txt = _inputCtrl.text.trim();
+    if (txt.isEmpty || _thinking) return;
+    setState(() {
+      _messages.add({'role': 'user', 'text': txt});
+    });
+    _inputCtrl.clear();
+    _askAi(txt);
+  }
+
+  void _scrollDown() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF1E1E2E) : Colors.white;
+    final tc = isDark ? Colors.white : Colors.black87;
+    final sc = isDark ? Colors.white54 : Colors.black54;
+
+    return Dialog(
+      backgroundColor: bg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520, maxHeight: 560),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Header ──
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppTheme.primaryColor, AppTheme.primaryDarkColor],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.auto_awesome, size: 20, color: Colors.white),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'AI Assistant',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text('High Access', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600)),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, size: 20, color: Colors.white70),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Messages ──
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollCtrl,
+                padding: const EdgeInsets.all(16),
+                itemCount: _messages.length + (_thinking ? 1 : 0),
+                itemBuilder: (_, i) {
+                  if (i == _messages.length && _thinking) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 16, height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.accentPurple),
+                          ),
+                          const SizedBox(width: 10),
+                          Text('AI is thinking...', style: TextStyle(fontSize: 12, color: sc, fontStyle: FontStyle.italic)),
+                        ],
+                      ),
+                    );
+                  }
+                  final msg = _messages[i];
+                  final isUser = msg['role'] == 'user';
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                      children: [
+                        if (!isUser) ...[
+                          Container(
+                            width: 28, height: 28,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(colors: [AppTheme.primaryColor, AppTheme.accentPurple]),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.auto_awesome, size: 14, color: Colors.white),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isUser
+                                  ? AppTheme.primaryColor.withValues(alpha: 0.12)
+                                  : (isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF8F4FF)),
+                              borderRadius: BorderRadius.only(
+                                topLeft: const Radius.circular(14),
+                                topRight: const Radius.circular(14),
+                                bottomLeft: Radius.circular(isUser ? 14 : 4),
+                                bottomRight: Radius.circular(isUser ? 4 : 14),
+                              ),
+                              border: isUser
+                                  ? null
+                                  : Border.all(color: AppTheme.accentPurple.withValues(alpha: 0.15)),
+                            ),
+                            child: Text(
+                              msg['text'] ?? '',
+                              style: TextStyle(fontSize: 13, color: tc, height: 1.5),
+                            ),
+                          ),
+                        ),
+                        if (isUser) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 28, height: 28,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.person, size: 14, color: Colors.white),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // ── Input + actions ──
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFFAF9FF),
+                border: Border(top: BorderSide(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06))),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _inputCtrl,
+                          style: TextStyle(fontSize: 13, color: tc),
+                          decoration: InputDecoration(
+                            hintText: 'Refine your request...',
+                            hintStyle: TextStyle(fontSize: 12, color: sc),
+                            filled: true,
+                            fillColor: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.black12),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.black12),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: AppTheme.accentPurple, width: 1.5),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            isDense: true,
+                          ),
+                          onSubmitted: (_) => _sendFollowUp(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: _thinking ? null : _sendFollowUp,
+                        icon: const Icon(Icons.send_rounded, size: 20),
+                        color: AppTheme.accentPurple,
+                        style: IconButton.styleFrom(
+                          backgroundColor: AppTheme.accentPurple.withValues(alpha: 0.1),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text('Cancel', style: TextStyle(color: sc, fontSize: 13)),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: (_thinking || _confirming) ? null : () async {
+                          setState(() => _confirming = true);
+                          await widget.onConfirm(_lastAiPlan.isNotEmpty ? _lastAiPlan : widget.initialPrompt);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        ),
+                        icon: _confirming
+                            ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.check_rounded, size: 16),
+                        label: Text(_confirming ? 'Executing...' : 'Confirm', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

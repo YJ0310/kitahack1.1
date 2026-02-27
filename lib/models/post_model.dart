@@ -6,7 +6,7 @@ class PostModel {
   final String description;
   final String status;
   final DateTime? createdAt;
-  final List<int> requirements;
+  final List<dynamic> requirements;
 
   PostModel({
     required this.postId,
@@ -28,7 +28,7 @@ class PostModel {
       description: json['description'] ?? '',
       status: json['status'] ?? 'Open',
       createdAt: _parseDate(json['created_at']),
-      requirements: List<int>.from(json['requirements'] ?? []),
+      requirements: List<dynamic>.from(json['requirements'] ?? []),
     );
   }
 

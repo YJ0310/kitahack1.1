@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 import 'routes/app_router.dart';
 import 'theme/app_theme.dart';
@@ -13,6 +14,10 @@ final authService = AuthService();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Prevent google_fonts from making HTTP requests — use bundled/system fonts only
+  GoogleFonts.config.allowRuntimeFetching = false;
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

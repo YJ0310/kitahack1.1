@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_theme.dart';
 import '../../services/api_service.dart';
+import '../../models/models.dart';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 class _Member {
@@ -1807,6 +1808,326 @@ class _State extends State<StudentTeamScreen> {
     ).animate().fadeIn(duration: 300.ms).scale(begin: const Offset(0.97, 0.97));
   }
 
+  /// Open a conversational AI modal for team creation
+  void _showTeamAiConversation({
+    required String prompt,
+    required bool isDark,
+    required void Function(PostModel post) onResult,
+  }) {
+    final chatMsgs = <Map<String, String>>[
+      {'role': 'user', 'text': prompt},
+    ];
+    final inputCtrl = TextEditingController();
+    final scrollCtrl = ScrollController();
+    bool thinking = true;
+    bool confirming = false;
+    String lastPrompt = prompt;
+
+    void scrollDown(StateSetter setDlgState) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (scrollCtrl.hasClients) {
+          scrollCtrl.animateTo(scrollCtrl.position.maxScrollExtent, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+        }
+      });
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDlgState) {
+            // Initial AI call
+            if (chatMsgs.length == 1 && thinking) {
+              ApiService().createPostFromDescription(prompt).then((post) {
+                setDlgState(() {
+                  chatMsgs.add({
+                    'role': 'ai',
+                    'text': '✨ I\'ve generated a team setup:\n\n'
+                        '📌 Title: ${post.title}\n'
+                        '📋 Type: ${post.type}\n'
+                        '🏷️ Requirements: ${post.requirements.join(", ")}\n\n'
+                        'Press "Confirm" to use these details, or tell me what to change!',
+                  });
+                  thinking = false;
+                  lastPrompt = prompt;
+                  // Store post for confirm
+                  _tempPost = post;
+                });
+                scrollDown(setDlgState);
+              }).catchError((e) {
+                setDlgState(() {
+                  chatMsgs.add({'role': 'ai', 'text': '❌ Error: $e\n\nPlease try rephrasing.'});
+                  thinking = false;
+                });
+                scrollDown(setDlgState);
+              });
+            }
+
+            final bg = isDark ? const Color(0xFF1E1E2E) : Colors.white;
+            final tc = isDark ? Colors.white : Colors.black87;
+            final sc = isDark ? Colors.white54 : Colors.black54;
+
+            return Dialog(
+              backgroundColor: bg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520, maxHeight: 560),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ── Header ──
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)]),
+                        borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.auto_awesome, size: 20, color: Colors.white),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text('AI Team Builder', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            icon: const Icon(Icons.close, size: 20, color: Colors.white70),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ── Messages ──
+                    Expanded(
+                      child: ListView.builder(
+                        controller: scrollCtrl,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: chatMsgs.length + (thinking ? 1 : 0),
+                        itemBuilder: (_, i) {
+                          if (i == chatMsgs.length && thinking) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Row(children: [
+                                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B5CF6))),
+                                const SizedBox(width: 10),
+                                Text('AI is thinking...', style: TextStyle(fontSize: 12, color: sc, fontStyle: FontStyle.italic)),
+                              ]),
+                            );
+                          }
+                          final msg = chatMsgs[i];
+                          final isUser = msg['role'] == 'user';
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                              children: [
+                                if (!isUser) ...[
+                                  Container(
+                                    width: 28, height: 28,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)]),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.auto_awesome, size: 14, color: Colors.white),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                Flexible(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: isUser
+                                          ? const Color(0xFF8B5CF6).withValues(alpha: 0.12)
+                                          : (isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF8F4FF)),
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: const Radius.circular(14),
+                                        topRight: const Radius.circular(14),
+                                        bottomLeft: Radius.circular(isUser ? 14 : 4),
+                                        bottomRight: Radius.circular(isUser ? 4 : 14),
+                                      ),
+                                      border: isUser ? null : Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.15)),
+                                    ),
+                                    child: Text(msg['text'] ?? '', style: TextStyle(fontSize: 13, color: tc, height: 1.5)),
+                                  ),
+                                ),
+                                if (isUser) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    width: 28, height: 28,
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryColor,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.person, size: 14, color: Colors.white),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
+                    // ── Input + actions ──
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      decoration: BoxDecoration(
+                        border: Border(top: BorderSide(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06))),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: inputCtrl,
+                                  style: TextStyle(fontSize: 13, color: tc),
+                                  decoration: InputDecoration(
+                                    hintText: 'Refine your requirements...',
+                                    hintStyle: TextStyle(fontSize: 12, color: sc),
+                                    filled: true,
+                                    fillColor: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.black12)),
+                                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.black12)),
+                                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 1.5)),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                    isDense: true,
+                                  ),
+                                  onSubmitted: (_) {
+                                    final txt = inputCtrl.text.trim();
+                                    if (txt.isEmpty || thinking) return;
+                                    setDlgState(() {
+                                      chatMsgs.add({'role': 'user', 'text': txt});
+                                      thinking = true;
+                                      lastPrompt = txt;
+                                    });
+                                    inputCtrl.clear();
+                                    ApiService().createPostFromDescription(txt).then((post) {
+                                      setDlgState(() {
+                                        chatMsgs.add({
+                                          'role': 'ai',
+                                          'text': '✨ Updated:\n\n'
+                                              '📌 Title: ${post.title}\n'
+                                              '📋 Type: ${post.type}\n'
+                                              '🏷️ Requirements: ${post.requirements.join(", ")}\n\n'
+                                              'Press "Confirm" to use these, or keep refining!',
+                                        });
+                                        thinking = false;
+                                        _tempPost = post;
+                                      });
+                                      scrollDown(setDlgState);
+                                    }).catchError((e) {
+                                      setDlgState(() {
+                                        chatMsgs.add({'role': 'ai', 'text': '❌ Error: $e'});
+                                        thinking = false;
+                                      });
+                                      scrollDown(setDlgState);
+                                    });
+                                    scrollDown(setDlgState);
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                onPressed: thinking ? null : () {
+                                  final txt = inputCtrl.text.trim();
+                                  if (txt.isEmpty) return;
+                                  setDlgState(() {
+                                    chatMsgs.add({'role': 'user', 'text': txt});
+                                    thinking = true;
+                                    lastPrompt = txt;
+                                  });
+                                  inputCtrl.clear();
+                                  ApiService().createPostFromDescription(txt).then((post) {
+                                    setDlgState(() {
+                                      chatMsgs.add({
+                                        'role': 'ai',
+                                        'text': '✨ Updated:\n📌 ${post.title}\n📋 ${post.type}\n🏷️ ${post.requirements.join(", ")}\n\nConfirm or refine!',
+                                      });
+                                      thinking = false;
+                                      _tempPost = post;
+                                    });
+                                    scrollDown(setDlgState);
+                                  }).catchError((e) {
+                                    setDlgState(() {
+                                      chatMsgs.add({'role': 'ai', 'text': '❌ Error: $e'});
+                                      thinking = false;
+                                    });
+                                    scrollDown(setDlgState);
+                                  });
+                                  scrollDown(setDlgState);
+                                },
+                                icon: const Icon(Icons.send_rounded, size: 20),
+                                color: const Color(0xFF8B5CF6),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: Text('Cancel', style: TextStyle(color: sc, fontSize: 13)),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton.icon(
+                                onPressed: (thinking || confirming || _tempPost == null) ? null : () {
+                                  setDlgState(() => confirming = true);
+                                  Navigator.pop(ctx);
+                                  onResult(_tempPost!);
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(this.context).showSnackBar(
+                                      SnackBar(
+                                        content: const Row(children: [
+                                          Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 16),
+                                          SizedBox(width: 8),
+                                          Text('AI generated your room details!'),
+                                        ]),
+                                        backgroundColor: const Color(0xFF8B5CF6),
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    );
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF8B5CF6),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                ),
+                                icon: confirming
+                                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                    : const Icon(Icons.check_rounded, size: 16),
+                                label: Text(confirming ? 'Applying...' : 'Confirm', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  PostModel? _tempPost;
+
   void _showCreateDialog(bool isDark) {
     final nameCtrl = TextEditingController();
     final eventCtrl = TextEditingController();
@@ -1864,7 +2185,7 @@ class _State extends State<StudentTeamScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── AI Assist ──
+                  // ── AI Assist (Conversational) ──
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -1910,40 +2231,23 @@ class _State extends State<StudentTeamScreen> {
                         ),
                         const SizedBox(height: 8),
                         GestureDetector(
-                          onTap: aiLoading ? null : () async {
+                          onTap: aiLoading ? null : () {
                             final prompt = aiPromptCtrl.text.trim();
                             if (prompt.isEmpty) return;
-                            setDlgState(() => aiLoading = true);
-                            try {
-                              final post = await ApiService().createPostFromDescription(prompt);
-                              setDlgState(() {
-                                nameCtrl.text = post.title;
-                                eventCtrl.text = post.type;
-                                selectedEvent = post.type;
-                                selectedTags.clear();
-                                selectedTags.addAll(post.requirements.map((r) => r.toString()));
-                                aiLoading = false;
-                              });
-                              // Show snackbar
-                              if (mounted) {
-                                ScaffoldMessenger.of(this.context).showSnackBar(
-                                  SnackBar(
-                                    content: const Row(
-                                      children: [
-                                        Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 16),
-                                        SizedBox(width: 8),
-                                        Text('AI generated your room details!'),
-                                      ],
-                                    ),
-                                    backgroundColor: const Color(0xFF8B5CF6),
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                  ),
-                                );
-                              }
-                            } catch (e) {
-                              setDlgState(() => aiLoading = false);
-                            }
+                            // Open conversational modal
+                            _showTeamAiConversation(
+                              prompt: prompt,
+                              isDark: isDark,
+                              onResult: (post) {
+                                setDlgState(() {
+                                  nameCtrl.text = post.title;
+                                  eventCtrl.text = post.type;
+                                  selectedEvent = post.type;
+                                  selectedTags.clear();
+                                  selectedTags.addAll(post.requirements.map((r) => r.toString()));
+                                });
+                              },
+                            );
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -1961,7 +2265,7 @@ class _State extends State<StudentTeamScreen> {
                                 else
                                   const Icon(Icons.auto_awesome_rounded, size: 14, color: Colors.white),
                                 const SizedBox(width: 6),
-                                Text(aiLoading ? 'Generating...' : 'Generate with AI ✨',
+                                Text(aiLoading ? 'Generating...' : 'Chat with AI ✨',
                                   style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600)),
                               ],
                             ),

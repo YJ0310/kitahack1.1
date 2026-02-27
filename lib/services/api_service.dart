@@ -200,14 +200,14 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> findCandidates(String postId) async {
-    final data = await _post('/matches/find-candidates', {'postId': postId});
+    final data = await _post('/matches/find-candidates', {'post_id': postId});
     return Map<String, dynamic>.from(data);
   }
 
   Future<MatchModel> applyToPost(
       {required String postId, String message = ''}) async {
     final data =
-        await _post('/matches/apply', {'postId': postId, 'message': message});
+        await _post('/matches/apply', {'post_id': postId, 'message': message});
     return MatchModel.fromJson(data['match'] ?? data);
   }
 
