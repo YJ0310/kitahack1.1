@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import '../models/models.dart';
 
@@ -34,6 +35,16 @@ class ApiService {
 
   // ─── HTTP Helpers ──────────────────────────────────────────────────────────
 
+  /// Ensure the Firebase ID token is fresh before each request.
+  /// Firebase tokens expire after 1 hour; this auto-refreshes them.
+  Future<void> _refreshTokenIfNeeded() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final token = await user.getIdToken(); // returns cached or refreshed
+      if (token != null) _idToken = token;
+    }
+  }
+
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
         if (_idToken != null)
@@ -43,11 +54,13 @@ class ApiService {
       };
 
   Future<dynamic> _get(String path) async {
+    await _refreshTokenIfNeeded();
     final res = await http.get(Uri.parse('$_baseUrl$path'), headers: _headers);
     return _handle(res);
   }
 
   Future<dynamic> _post(String path, [Map<String, dynamic>? body]) async {
+    await _refreshTokenIfNeeded();
     final res = await http.post(
       Uri.parse('$_baseUrl$path'),
       headers: _headers,
@@ -57,6 +70,7 @@ class ApiService {
   }
 
   Future<dynamic> _put(String path, Map<String, dynamic> body) async {
+    await _refreshTokenIfNeeded();
     final res = await http.put(
       Uri.parse('$_baseUrl$path'),
       headers: _headers,
@@ -66,6 +80,7 @@ class ApiService {
   }
 
   Future<dynamic> _patch(String path, Map<String, dynamic> body) async {
+    await _refreshTokenIfNeeded();
     final res = await http.patch(
       Uri.parse('$_baseUrl$path'),
       headers: _headers,
