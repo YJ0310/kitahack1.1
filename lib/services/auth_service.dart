@@ -92,14 +92,25 @@ class AuthService extends ChangeNotifier {
     ApiService().setToken(token!);
     ApiService().setUid(_uid!);
 
-    // Upsert user profile in Firestore via backend
+    // Ensure user profile exists — use patch so we don't overwrite tags
     try {
-      await ApiService().upsertProfile({
-        'name': _displayName,
-        'email': user.email ?? '',
-        'photo_url': user.photoURL ?? '',
-        'uid': _uid,
-      });
+      final existing = await ApiService().getProfile();
+      if (existing == null) {
+        // First time sign-in: create the document
+        await ApiService().upsertProfile({
+          'name': _displayName,
+          'email': user.email ?? '',
+          'photo_url': user.photoURL ?? '',
+          'uid': _uid,
+        });
+      } else {
+        // Existing user: only update name/email/photo, preserve tags
+        await ApiService().patchProfile({
+          'name': _displayName,
+          'email': user.email ?? '',
+          'photo_url': user.photoURL ?? '',
+        });
+      }
     } catch (_) {
       // Backend might be initialising; not fatal
     }

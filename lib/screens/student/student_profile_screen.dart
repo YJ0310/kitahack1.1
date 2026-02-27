@@ -115,20 +115,37 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
     try {
       final profile = await ApiService().getProfile();
       if (profile != null && mounted) {
+        // Load tag definitions so we can resolve IDs → names
+        Map<int, String> tagNameMap = {};
+        try {
+          final allTags = await ApiService().getTags();
+          for (final t in allTags) {
+            final id = int.tryParse(t.id);
+            if (id != null) tagNameMap[id] = t.name;
+          }
+        } catch (_) {}
+
         setState(() {
           if (profile.name.isNotEmpty) _name = profile.name;
           if (profile.email.isNotEmpty) _email = profile.email;
           if (profile.portfolioUrl.isNotEmpty) _github = profile.portfolioUrl;
           if (profile.matricNo.isNotEmpty) _faculty = profile.matricNo;
-          // Populate skills from tags
-          if (profile.skillTags.isNotEmpty) {
-            _skills.clear();
-            for (final tag in profile.skillTags) {
-              _skills.add(_Skill(
-                tag['name']?.toString() ?? 'Tag ${tag['tag_id']}',
-                SkillLevel.competent,
-              ));
-            }
+
+          // Populate skills from skill_tags
+          _skills.clear();
+          for (final tag in profile.skillTags) {
+            final tagId = tag['tag_id'];
+            final confirmed = tag['is_confirmed'] == true;
+            final name = tagNameMap[tagId] ?? tag['name']?.toString() ?? 'Tag $tagId';
+            _skills.add(_Skill(
+              name,
+              confirmed ? SkillLevel.competent : SkillLevel.learning,
+            ));
+          }
+
+          // Also show major as a label (resolve via tag map)
+          if (profile.majorId != null && tagNameMap.containsKey(profile.majorId)) {
+            if (_faculty.isEmpty) _faculty = tagNameMap[profile.majorId!]!;
           }
         });
       }
