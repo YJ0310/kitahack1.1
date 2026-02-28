@@ -77,6 +77,9 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
   bool _showEditProfile = false;
   bool _showEditSkills = false;
   bool _showAddProject = false;
+  bool _showResume = false;
+  bool _resumeLoading = false;
+  String _resumeText = '';
 
   // ─── Spectrum UM state ──────────────────────────────────────────────────────
   bool _spectrumFetched = false;
@@ -370,6 +373,30 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
     }
   }
 
+  Future<void> _generateResume() async {
+    setState(() {
+      _resumeLoading = true;
+      _showResume = true;
+      _resumeText = '';
+    });
+    try {
+      final resume = await ApiService().generateResume();
+      if (mounted) {
+        setState(() {
+          _resumeText = resume;
+          _resumeLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _resumeText = 'Failed to generate resume. Please try again.\n\nError: $e';
+          _resumeLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -424,6 +451,13 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                   width: width,
                   onAddProject: () => setState(() => _showAddProject = true),
                 ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
+                const SizedBox(height: 20),
+                // Create Resume Section
+                _ResumeSection(
+                  isDark: isDark,
+                  loading: _resumeLoading,
+                  onGenerate: _generateResume,
+                ).animate().fadeIn(delay: 250.ms, duration: 500.ms),
                 const SizedBox(height: 32),
               ],
             ),
@@ -485,6 +519,21 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                 tagsCtrl: _projTagsCtrl,
                 onSave: _addProject,
                 onCancel: () => setState(() => _showAddProject = false),
+              ),
+            ),
+          // Resume Dialog
+          if (_showResume)
+            _ModalDialog(
+              isDark: isDark,
+              title: 'AI-Generated Resume',
+              icon: Icons.description_rounded,
+              onClose: () => setState(() => _showResume = false),
+              child: _ResumeBody(
+                isDark: isDark,
+                loading: _resumeLoading,
+                resumeText: _resumeText,
+                onClose: () => setState(() => _showResume = false),
+                onRegenerate: _generateResume,
               ),
             ),
         ],
@@ -2042,6 +2091,242 @@ class _FormField extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─── Resume Section (Create Resume Button) ────────────────────────────────────
+class _ResumeSection extends StatelessWidget {
+  final bool isDark;
+  final bool loading;
+  final VoidCallback onGenerate;
+
+  const _ResumeSection({
+    required this.isDark,
+    required this.loading,
+    required this.onGenerate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [
+                  AppTheme.primaryColor.withValues(alpha: 0.15),
+                  AppTheme.secondaryColor.withValues(alpha: 0.10),
+                ]
+              : [
+                  AppTheme.primaryColor.withValues(alpha: 0.08),
+                  AppTheme.secondaryColor.withValues(alpha: 0.05),
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark
+              ? AppTheme.primaryColor.withValues(alpha: 0.2)
+              : AppTheme.primaryColor.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.description_rounded,
+                  size: 20,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AI Resume Generator',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Generate a professional resume from your profile',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.6)
+                            : AppTheme.textSecondaryColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: loading ? null : onGenerate,
+              icon: loading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.auto_awesome_rounded, size: 18),
+              label: Text(
+                loading ? 'Generating...' : 'Create Resume',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Resume Body (Dialog Content) ─────────────────────────────────────────────
+class _ResumeBody extends StatelessWidget {
+  final bool isDark;
+  final bool loading;
+  final String resumeText;
+  final VoidCallback onClose;
+  final VoidCallback onRegenerate;
+
+  const _ResumeBody({
+    required this.isDark,
+    required this.loading,
+    required this.resumeText,
+    required this.onClose,
+    required this.onRegenerate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return SizedBox(
+        height: 300,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: AppTheme.primaryColor),
+              const SizedBox(height: 16),
+              Text(
+                'JARVIS is crafting your resume...',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.7)
+                      : AppTheme.textSecondaryColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Resume content in a scrollable container
+        Container(
+          constraints: const BoxConstraints(maxHeight: 500),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.04)
+                : AppTheme.backgroundColor.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : AppTheme.backgroundColor.withValues(alpha: 0.7),
+            ),
+          ),
+          child: SingleChildScrollView(
+            child: SelectableText(
+              resumeText,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.6,
+                color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Action buttons
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onRegenerate,
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('Regenerate', style: TextStyle(fontSize: 13)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.primaryColor,
+                  side: const BorderSide(color: AppTheme.primaryColor),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: onClose,
+                icon: const Icon(Icons.check_rounded, size: 16),
+                label: const Text('Done', style: TextStyle(fontSize: 13)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

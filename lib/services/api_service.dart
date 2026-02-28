@@ -143,6 +143,13 @@ class ApiService {
     return UserModel.fromJson(data['user'] ?? data);
   }
 
+  /// Generate an AI-powered resume from the user's profile data.
+  /// Returns the resume as a Markdown string.
+  Future<String> generateResume() async {
+    final data = await _post('/users/generate-resume');
+    return data['resume']?.toString() ?? '';
+  }
+
   // ─── Tags ──────────────────────────────────────────────────────────────────
 
   Future<List<TagModel>> getTags({int? category}) async {
