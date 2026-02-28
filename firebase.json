@@ -9,11 +9,15 @@
     ],
     "rewrites": [
       {
-        "source": "**",
+        "source": "/api/**",
         "run": {
-          "serviceId": "kitahack-backend",
+          "serviceId": "kitahack-app",
           "region": "us-central1"
         }
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
       }
     ]
   }
