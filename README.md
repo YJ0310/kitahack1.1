@@ -150,29 +150,31 @@ Both light and dark themes are supported with toggle on the dashboard.
 
 ---
 
-## 🗺️ Future Roadmap
+## 🗺️ Future Roadmap (by 28 March — Final Round)
 
-### Phase 1 — Enhanced Matching (Q2 2026)
-- [ ] Real-time collaborative filtering (learn from accepted/rejected matches)
-- [ ] Multi-round team building (form complete teams, not just pairs)
-- [ ] Skill verification via micro-assessments
+### Week 1 (1–7 Mar) — UX Polish & Testing
+- [ ] Improve responsive layout for mobile and tablet breakpoints
+- [ ] Add loading skeletons and error state UI across all screens
+- [ ] End-to-end testing of all AI features with real user data
+- [ ] Fix edge cases in 48-hour temp chat expiration flow
 
-### Phase 2 — University Ecosystem (Q3 2026)
-- [ ] Multi-university federation (connect students across Malaysian universities)
-- [ ] Official university API integration (auto-sync courses, grades, clubs)
-- [ ] Enterprise recruiter portal with talent pipeline management
+### Week 2 (8–14 Mar) — AI Accuracy & Reliability
+- [ ] Fine-tune AI matching prompts for higher relevance scores
+- [ ] Add match explanation transparency (show why AI recommended each candidate)
+- [ ] Implement multi-turn JARVIS conversations with session context
+- [ ] Stress test AIDB Manager with full 10K user dataset
 
-### Phase 3 — AI Evolution (Q4 2026)
-- [ ] Conversational JARVIS with multi-turn memory and context
-- [ ] AI-generated project proposals based on trending research + student strengths
-- [ ] Predictive analytics dashboard for university administrators
-- [ ] Voice interface for JARVIS commands
+### Week 3 (15–21 Mar) — Enterprise & School Portals
+- [ ] Complete enterprise recruiter dashboard with candidate search
+- [ ] Build school admin portal for event publishing and analytics
+- [ ] Add real-time notification system for match/chat updates
+- [ ] Integrate Spectrum UM data import for auto-profile population
 
-### Phase 4 — Scale & Monetization (2027)
-- [ ] Mobile-first native apps (Android & iOS)
-- [ ] Freemium tier for enterprise recruiters
-- [ ] University licensing model
-- [ ] Regional expansion (Southeast Asia universities)
+### Week 4 (22–28 Mar) — Final Polish & Demo Prep
+- [ ] Performance optimization and cold-start reduction on Cloud Run
+- [ ] Comprehensive demo walkthrough with seed data scenarios
+- [ ] Final UI/UX review and accessibility improvements
+- [ ] Documentation and presentation preparation for judging
 
 ---
 
