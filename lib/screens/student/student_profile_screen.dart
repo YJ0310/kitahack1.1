@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_theme.dart';
@@ -77,6 +78,14 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
   bool _showEditSkills = false;
   bool _showAddProject = false;
 
+  // ─── Spectrum UM state ──────────────────────────────────────────────────────
+  bool _spectrumFetched = false;
+  bool _spectrumLoading = false;
+  String _matricNo = '';
+  String _spectrumFaculty = '';
+  String _spectrumMajor = '';
+  List<String> _spectrumCourses = [];
+
   // Temp edit controllers
   final _nameCtrl = TextEditingController();
   final _facultyCtrl = TextEditingController();
@@ -150,6 +159,137 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  // ─── Spectrum UM mock data & simulated fetch ──────────────────────────────
+  static const _spectrumMockDB = {
+    'Faculty of Computer Science & Information Technology': {
+      'majors': [
+        'Software Engineering',
+        'Artificial Intelligence',
+        'Computer System & Network',
+        'Information Systems',
+        'Data Science',
+        'Multimedia',
+      ],
+      'courses': [
+        'WIX1002 Fundamentals of Programming',
+        'WIX2005 Operating Systems',
+        'WIA2005 Algorithm Design & Analysis',
+        'WIA2004 Object-Oriented Programming',
+        'WIA3007 Machine Learning',
+        'WIA3002 Data Mining',
+        'WIA2003 Probability & Statistics',
+        'WIX3004 Mobile Application Development',
+        'WIX3001 Software Engineering',
+        'WIA3005 Intelligent Systems',
+      ],
+    },
+    'Faculty of Engineering': {
+      'majors': [
+        'Mechanical Engineering',
+        'Electrical Engineering',
+        'Civil Engineering',
+        'Chemical Engineering',
+        'Biomedical Engineering',
+      ],
+      'courses': [
+        'KIX1001 Engineering Mathematics I',
+        'KIX1002 Engineering Mathematics II',
+        'KMM1013 Engineering Mechanics',
+        'KEE2004 Signal & Systems',
+        'KMK2003 Thermodynamics',
+      ],
+    },
+    'Faculty of Business & Economics': {
+      'majors': [
+        'Finance',
+        'Accounting',
+        'Business Analytics',
+        'Marketing',
+        'Economics',
+      ],
+      'courses': [
+        'EIA1001 Microeconomics',
+        'EIA2003 Macroeconomics',
+        'AIC1004 Financial Accounting',
+        'BIM2005 Marketing Management',
+        'EIA3008 Econometrics',
+      ],
+    },
+    'Faculty of Science': {
+      'majors': [
+        'Physics',
+        'Chemistry',
+        'Mathematics',
+        'Biology',
+        'Geology',
+      ],
+      'courses': [
+        'SIF1002 Physics I',
+        'SIK1003 General Chemistry',
+        'SIM1001 Calculus I',
+        'SIB1003 Biodiversity',
+        'SIG2001 Physical Geology',
+      ],
+    },
+  };
+
+  Future<void> _fetchSpectrumUM() async {
+    if (_spectrumFetched) return;
+    setState(() => _spectrumLoading = true);
+
+    // Simulate network delay (1–2 seconds)
+    await Future.delayed(Duration(milliseconds: 1200 + Random().nextInt(800)));
+
+    if (!mounted) return;
+
+    // Pick a random faculty + major + courses
+    final faculties = _spectrumMockDB.keys.toList();
+
+    // Prefer FSKTM if user has CS-related skills
+    String faculty;
+    final hasCS = _skills.any((s) =>
+        s.name.toLowerCase().contains('python') ||
+        s.name.toLowerCase().contains('java') ||
+        s.name.toLowerCase().contains('flutter') ||
+        s.name.toLowerCase().contains('programming'));
+    if (hasCS) {
+      faculty = faculties.first; // FSKTM
+    } else {
+      faculty = faculties[Random().nextInt(faculties.length)];
+    }
+
+    final fData = _spectrumMockDB[faculty]!;
+    final major = (fData['majors'] as List<String>)[
+        Random().nextInt((fData['majors'] as List<String>).length)];
+    final allCourses = List<String>.from(fData['courses'] as List<String>);
+    allCourses.shuffle();
+    final courses = allCourses.take(4 + Random().nextInt(3)).toList();
+
+    // Generate a realistic matric number (e.g., U2102345)
+    final year = 20 + Random().nextInt(5); // 20-24
+    final seq = (10000 + Random().nextInt(89999)).toString();
+    final matric = 'U$year$seq';
+
+    setState(() {
+      _spectrumLoading = false;
+      _spectrumFetched = true;
+      _matricNo = matric;
+      _spectrumFaculty = faculty;
+      _spectrumMajor = major;
+      _spectrumCourses = courses;
+      // Also update the displayed faculty
+      if (_faculty.isEmpty || _faculty == _email) {
+        _faculty = faculty;
+      }
+    });
+
+    // Push matric no + faculty to backend
+    ApiService().patchProfile({
+      'matric_no': matric,
+      'faculty': faculty,
+    }).catchError((_) {});
   }
 
   void _openEditProfile() {
@@ -257,6 +397,18 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                   joinDate: _joinDate,
                   onEdit: _openEditProfile,
                 ).animate().fadeIn(duration: 500.ms),
+                const SizedBox(height: 20),
+                // Academic Info — Spectrum UM
+                _SpectrumUMSection(
+                  isDark: isDark,
+                  fetched: _spectrumFetched,
+                  loading: _spectrumLoading,
+                  matricNo: _matricNo,
+                  faculty: _spectrumFaculty,
+                  major: _spectrumMajor,
+                  courses: _spectrumCourses,
+                  onFetch: _fetchSpectrumUM,
+                ).animate().fadeIn(delay: 50.ms, duration: 500.ms),
                 const SizedBox(height: 20),
                 // Skills Section
                 _SkillsSection(
@@ -618,6 +770,341 @@ class _SocialBtn extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ─── Spectrum UM Academic Info Section ─────────────────────────────────────────
+class _SpectrumUMSection extends StatelessWidget {
+  final bool isDark;
+  final bool fetched;
+  final bool loading;
+  final String matricNo;
+  final String faculty;
+  final String major;
+  final List<String> courses;
+  final VoidCallback onFetch;
+
+  const _SpectrumUMSection({
+    required this.isDark,
+    required this.fetched,
+    required this.loading,
+    required this.matricNo,
+    required this.faculty,
+    required this.major,
+    required this.courses,
+    required this.onFetch,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : AppTheme.backgroundColor.withValues(alpha: 0.7),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2196F3).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.school_rounded,
+                  size: 16,
+                  color: Color(0xFF2196F3),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Academic Info',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color:
+                            isDark ? Colors.white : AppTheme.textPrimaryColor,
+                      ),
+                    ),
+                    Text(
+                      'Spectrum UM',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.4)
+                            : AppTheme.primaryColor.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (fetched)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle_rounded,
+                          size: 13, color: Colors.green),
+                      SizedBox(width: 4),
+                      Text(
+                        'Synced',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Content: fetched data OR import button
+          if (!fetched && !loading)
+            _buildImportButton()
+          else if (loading)
+            _buildLoadingState()
+          else
+            _buildAcademicData(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImportButton() {
+    return GestureDetector(
+      onTap: onFetch,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFF2196F3).withValues(alpha: 0.08),
+              const Color(0xFF7C4DFF).withValues(alpha: 0.06),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: const Color(0xFF2196F3).withValues(alpha: 0.2),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2196F3).withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.cloud_download_rounded,
+                size: 24,
+                color: Color(0xFF2196F3),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Import from Spectrum UM',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF2196F3),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Auto-fill your faculty, major & enrolled courses',
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.4)
+                    : Colors.grey.shade500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      child: Column(
+        children: [
+          const SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              valueColor:
+                  AlwaysStoppedAnimation<Color>(Color(0xFF2196F3)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Fetching from Spectrum UM...',
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.5)
+                  : Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAcademicData() {
+    return Column(
+      children: [
+        _AcademicField(
+          isDark: isDark,
+          icon: Icons.badge_rounded,
+          label: 'Matric No.',
+          value: matricNo,
+        ),
+        const SizedBox(height: 10),
+        _AcademicField(
+          isDark: isDark,
+          icon: Icons.account_balance_rounded,
+          label: 'Faculty',
+          value: faculty,
+        ),
+        const SizedBox(height: 10),
+        _AcademicField(
+          isDark: isDark,
+          icon: Icons.menu_book_rounded,
+          label: 'Major',
+          value: major,
+        ),
+        const SizedBox(height: 14),
+        // Courses
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Enrolled Courses',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.5)
+                  : Colors.grey.shade600,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...courses.map((c) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.circle,
+                    size: 6,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.3)
+                        : AppTheme.primaryColor.withValues(alpha: 0.4),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      c,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.7)
+                            : AppTheme.textPrimaryColor.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )),
+      ],
+    );
+  }
+}
+
+class _AcademicField extends StatelessWidget {
+  final bool isDark;
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _AcademicField({
+    required this.isDark,
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 15,
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.4)
+              : const Color(0xFF2196F3).withValues(alpha: 0.6),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$label:  ',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.5)
+                : Colors.grey.shade600,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.white : AppTheme.textPrimaryColor,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
